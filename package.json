@@ -1,0 +1,14 @@
+{
+  "name": "holiday-landing",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Holiday Landing - a browser game for Vacation Tracker",
+  "scripts": {
+    "assets": "python3 tools/prep_assets.py",
+    "build": "node tools/build.js",
+    "test": "playwright test"
+  },
+  "dependencies": {
+    "@playwright/test": "^1.62.1"
+  }
+}

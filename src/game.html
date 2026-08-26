@@ -1,0 +1,1029 @@
+<title>Holiday Landing</title>
+<style>
+:root{
+  --purple:#7F00FF; --orange:#ED6E44; --orange-dk:#D55A32; --green:#22C55E;
+  --cream:#F4F1E6; --page:#F3F0F8; --ink:#281853; --ink-soft:#5B5477;
+  --lav:#E8DEF2; --hair:#E2DDEE; --sea:#0A1834;
+  --reserve:132px;   /* measured chrome is 124px; 8px of slack */
+  --font:ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+}
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0;background:var(--page);color:var(--ink);font-family:var(--font);
+  -webkit-font-smoothing:antialiased;display:flex;align-items:center;justify-content:center;
+  padding:14px;overflow:hidden;
+}
+button{font:inherit;color:inherit}
+:focus-visible{outline:3px solid var(--purple);outline-offset:2px;border-radius:8px}
+
+.shell{
+  width:100%;max-width:1180px;background:#fff;border:1px solid var(--hair);
+  border-radius:22px;box-shadow:0 18px 50px rgba(40,24,83,.13),0 2px 6px rgba(40,24,83,.06);
+  overflow:hidden;display:flex;flex-direction:column;
+}
+
+/* ---------- header ---------- */
+.hdr{display:flex;align-items:center;gap:14px;padding:12px 18px;background:#fff}
+.brand{display:flex;align-items:center;gap:0;font-weight:800;letter-spacing:-.03em;
+  font-size:19px;color:var(--purple);white-space:nowrap}
+.mark{width:23px;height:23px;border-radius:50%;background:var(--purple);color:#fff;
+  display:grid;place-items:center;font-size:14px;font-weight:800;line-height:1;
+  margin-right:1px;letter-spacing:0}
+.hdr .tag{font-size:13px;font-weight:600;color:var(--ink-soft);border-left:1px solid var(--hair);
+  padding-left:14px;white-space:nowrap}
+.hdr .sp{flex:1}
+.hdr-r{display:flex;align-items:center;gap:8px}
+.score{display:flex;align-items:baseline;gap:6px;font-weight:800;letter-spacing:-.02em;
+  font-size:17px;padding:5px 12px;border-radius:999px;background:var(--lav);color:var(--ink)}
+.score i{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-soft)}
+.iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--hair);background:#fff;
+  cursor:pointer;display:grid;place-items:center;padding:0;transition:background .15s,border-color .15s}
+.iconbtn:hover{background:var(--page)}
+.iconbtn[aria-pressed="true"]{background:var(--lav);border-color:#d6c8e8}
+.iconbtn svg{width:17px;height:17px;fill:none;stroke:var(--ink);stroke-width:1.9;
+  stroke-linecap:round;stroke-linejoin:round}
+
+/* ---------- stage ---------- */
+.stage{position:relative;display:flex;align-items:center;justify-content:center;background:var(--sea)}
+canvas{display:block;width:auto;height:auto;max-width:100%;
+  max-height:calc(100vh - var(--reserve));aspect-ratio:1280/853;touch-action:none}
+
+/* ---------- footer ---------- */
+.ftr{display:flex;align-items:center;gap:16px;padding:11px 18px;background:#fff;
+  border-top:1px solid var(--hair);font-size:13px}
+.legend{display:flex;align-items:center;gap:14px;flex-wrap:wrap}
+.leg{display:flex;align-items:center;gap:6px;font-weight:650;color:var(--ink)}
+.dot{width:9px;height:9px;border-radius:50%;flex:none}
+.ftr .sp{flex:1}
+.hint{color:var(--ink-soft);white-space:nowrap}
+
+/* ---------- overlays ---------- */
+.veil{position:absolute;inset:0;display:grid;place-items:center;padding:18px;
+  background:rgba(8,20,48,.5);backdrop-filter:blur(7px);-webkit-backdrop-filter:blur(7px);z-index:5}
+.veil[hidden]{display:none}
+.card{background:var(--cream);border-radius:20px;padding:26px 30px;width:min(520px,100%);
+  max-height:100%;overflow:auto;text-align:center;
+  box-shadow:0 22px 60px rgba(6,12,32,.45);animation:pop .32s cubic-bezier(.2,.9,.3,1.2)}
+@keyframes pop{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
+.card .brand{justify-content:center;font-size:20px;margin-bottom:14px}
+.eyebrow{font-size:11px;font-weight:800;letter-spacing:.19em;text-transform:uppercase;
+  color:var(--orange);margin:0 0 6px}
+h1{font-size:clamp(26px,4.4vw,36px);font-weight:800;letter-spacing:-.035em;margin:0 0 10px;
+  line-height:1.1}
+h1 em{font-style:normal;background:var(--lav);border-radius:11px;padding:.06em .3em;display:inline-block}
+.lede{margin:0 auto 16px;max-width:40ch;font-size:14.5px;line-height:1.5;color:var(--ink-soft)}
+ol.rules{text-align:left;margin:0 0 16px;padding:0;list-style:none;counter-reset:r}
+ol.rules li{counter-increment:r;position:relative;padding:0 0 0 30px;margin-bottom:9px;
+  font-size:14px;line-height:1.45;color:var(--ink)}
+ol.rules li::before{content:counter(r);position:absolute;left:0;top:0;width:20px;height:20px;
+  border-radius:50%;background:var(--purple);color:#fff;font-size:11px;font-weight:800;
+  display:grid;place-items:center}
+ol.rules b{font-weight:750}
+.routes{display:flex;gap:8px;justify-content:center;margin:0 0 18px;flex-wrap:wrap}
+.route{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid #e6e0d2;
+  border-radius:13px;padding:6px 11px 6px 7px}
+.route img{width:30px;height:30px;object-fit:contain;flex:none}
+.route .k{font-weight:800;font-size:14px;letter-spacing:-.02em}
+.route .n{font-size:12px;color:var(--ink-soft);font-weight:600}
+.btn{appearance:none;border:0;background:var(--orange);color:#fff;font-weight:800;font-size:16.5px;
+  letter-spacing:-.015em;padding:13px 30px;border-radius:14px;cursor:pointer;
+  box-shadow:0 4px 0 var(--orange-dk);transition:transform .09s,box-shadow .09s,background .15s}
+.btn:hover{background:#f07c53}
+.btn:active{transform:translateY(3px);box-shadow:0 1px 0 var(--orange-dk)}
+.keys{margin:13px 0 0;font-size:11.5px;color:var(--ink-soft)}
+kbd{font-family:inherit;font-size:10.5px;font-weight:750;background:#fff;border:1px solid #ded7c6;
+  border-bottom-width:2px;border-radius:5px;padding:1.5px 5px;color:var(--ink)}
+.by{margin:14px 0 0;font-size:11.5px;color:var(--ink-soft)}
+
+/* game-over card */
+.gover h1{color:var(--ink)}
+.reason{background:#fff;border:1px solid #e6e0d2;border-radius:13px;padding:12px 14px;
+  margin:0 0 15px;font-size:14px;line-height:1.5;color:var(--ink)}
+.reason b{font-weight:800}
+.final{display:flex;gap:9px;justify-content:center;margin:0 0 15px;flex-wrap:wrap}
+.stat{background:#fff;border:1px solid #e6e0d2;border-radius:13px;padding:9px 15px;min-width:66px}
+.stat u{display:block;text-decoration:none;font-size:10px;font-weight:800;letter-spacing:.1em;
+  text-transform:uppercase;color:var(--ink-soft);margin-bottom:2px}
+.stat s{display:block;text-decoration:none;font-size:21px;font-weight:800;letter-spacing:-.03em}
+.stat.big s{color:var(--purple)}
+
+/* rotate gate — covers the whole page, not just the stage, so the chrome
+   cannot show through in a layout it was never meant to fit */
+.rotate{position:fixed;inset:0;z-index:50;display:none;place-items:center;text-align:center;
+  background:var(--sea);color:#fff;padding:24px}
+.rotate .brand{justify-content:center;color:#fff;margin-bottom:22px}
+.rotate .mark{background:#fff;color:var(--purple)}
+.rotate small{display:block;margin-top:7px;font-size:12.5px;color:#9FB0D4}
+.rotate p{font-size:17px;font-weight:750;margin:14px 0 0;letter-spacing:-.02em}
+.rotate svg{width:52px;height:52px;stroke:#fff;fill:none;stroke-width:1.7;stroke-linecap:round;
+  stroke-linejoin:round}
+
+/* ---------- short viewport (10.5) ---------- */
+@media (max-height:620px){
+  :root{--reserve:40px}   /* compacted chrome measures 35px */
+  body{padding:0}
+  .shell{border-radius:0;border:0;max-width:none;box-shadow:none}
+  .hdr{padding:4px 10px;gap:9px}
+  .brand{font-size:14px}.mark{width:18px;height:18px;font-size:11px}
+  .hdr .tag{display:none}
+  .score{font-size:14px;padding:3px 9px}.score i{display:none}
+  .iconbtn{width:27px;height:27px;border-radius:8px}.iconbtn svg{width:14px;height:14px}
+  .ftr{display:none}
+  .card{padding:15px 18px;border-radius:15px}
+  .card .brand{margin-bottom:7px;font-size:16px}
+  h1{font-size:22px;margin-bottom:6px}
+  .lede{margin-bottom:9px;font-size:12.5px}
+  ol.rules li{font-size:12px;margin-bottom:5px}
+  .routes{margin-bottom:11px}.route img{width:23px;height:23px}
+  .btn{padding:9px 22px;font-size:14.5px}
+  .keys,.by{margin-top:8px}
+  .reason,.final{margin-bottom:9px}
+}
+@media (max-width:620px){
+  .hdr .tag{display:none}
+  .hdr{gap:9px;padding:10px 12px}
+  .brand{font-size:16px;min-width:0;overflow:hidden}
+  .ftr{flex-wrap:wrap;gap:6px 14px}
+  .hint{white-space:normal}
+}
+/* phones only: an 800px-wide tablet in portrait still gets a usable
+   790x526 playfield, so gating it would be a worse experience */
+@media (max-width:640px) and (orientation:portrait){ .rotate{display:grid} }
+@media (prefers-reduced-motion:reduce){ .card{animation:none} }
+</style>
+
+<div class="shell">
+  <header class="hdr">
+    <div class="brand"><span class="mark">V</span>acation Tracker</div>
+    <span class="tag">Holiday Landing</span>
+    <span class="sp"></span>
+    <div class="hdr-r">
+      <div class="score"><i>Landed</i><span id="score">0</span></div>
+      <button class="iconbtn" id="btnSound" aria-pressed="false" aria-label="Sound off" title="Sound (M)">
+        <svg id="icSound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="mute1" d="M17 9l4 6M21 9l-4 6"/><path id="mute2" style="display:none" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>
+      </button>
+      <button class="iconbtn" id="btnPause" aria-label="Pause" title="Pause (P)">
+        <svg viewBox="0 0 24 24"><path id="icPause" d="M9 5v14M15 5v14"/></svg>
+      </button>
+    </div>
+  </header>
+
+  <div class="stage" id="stage">
+    <canvas id="cv" aria-label="Holiday Landing playfield. Drag from a plane to draw the route it flies, and land each plane on the runway painted its colour."></canvas>
+
+    <div class="veil" id="veil">
+      <div class="card" id="card"></div>
+    </div>
+
+  </div>
+
+  <footer class="ftr">
+    <div class="legend">
+      <span class="leg"><span class="dot" style="background:#22C55E"></span>A Beach</span>
+      <span class="leg"><span class="dot" style="background:#ED6E44"></span>B Ski</span>
+      <span class="leg"><span class="dot" style="background:#7F00FF"></span>C City</span>
+    </div>
+    <span class="sp"></span>
+    <span class="hint">Drag from a plane to draw its route</span>
+  </footer>
+</div>
+
+<div class="rotate">
+  <div>
+    <div class="brand"><span class="mark">V</span>acation Tracker</div>
+    <svg viewBox="0 0 24 24"><rect x="3" y="6" width="18" height="12" rx="2"/><path d="M12 2v2M8 22h8"/></svg>
+    <p>Turn your phone sideways</p>
+    <small>Holiday Landing needs a landscape runway</small>
+  </div>
+</div>
+
+<script>
+(function(){
+'use strict';
+
+/* ═══════════════ art ═══════════════ */
+const ART={map:"__MAP__",a:"__PLANE_A__",b:"__PLANE_B__",c:"__PLANE_C__"};
+
+/* ═══════════════ constants ═══════════════ */
+const W=1280, H=853;                  // logical playfield (map is 3:2)
+
+const TYPES={
+  a:{k:'a',dest:'A',col:'#22C55E',glow:'#3BE070'},
+  b:{k:'b',dest:'B',col:'#ED6E44',glow:'#FF8A5E'},
+  c:{k:'c',dest:'C',col:'#7F00FF',glow:'#A855F7'}
+};
+const KEYS=['a','b','c'];
+
+/* Fitted to the painted asphalt on the map, then checked by eye. §4.1's
+   headings are right; two of its three centres were not — see RUNWAYS.md. */
+const RUNWAYS=[
+  {k:'A',name:'the beach',cx:457,cy:524,deg:65,len:150,wid:86,col:'#22C55E'},
+  {k:'B',name:'the ski slope',cx:762,cy:280,deg:92,len:146,wid:78,col:'#ED6E44'},
+  {k:'C',name:'the city',cx:1103,cy:686,deg:-41,len:200,wid:108,col:'#7F00FF'}
+];
+for(const r of RUNWAYS){
+  r.rad=r.deg*Math.PI/180;
+  r.ux=Math.cos(r.rad); r.uy=Math.sin(r.rad);
+  r.hl=r.len/2; r.hw=r.wid/2;
+  r.tx=r.cx-r.ux*r.hl; r.ty=r.cy-r.uy*r.hl;   // threshold (approach end)
+  r.ex=r.cx+r.ux*r.hl; r.ey=r.cy+r.uy*r.hl;   // far end
+  /* §7 / §10.2: a fixed 100px corridor runs off-canvas, so clamp to whatever
+     still fits inside a 20px margin. Measured on the rails, not the centreline
+     — C's threshold is near the bottom edge and its rails leave the canvas
+     well before its centre does. */
+  r.ghw=r.hw*0.58;
+  let m=100;
+  outer: for(let d=0;d<=100;d+=2){
+    for(const s of [-1,1]){
+      const x=r.tx-r.ux*d-r.uy*r.ghw*s, y=r.ty-r.uy*d+r.ux*r.ghw*s;
+      if(x<20||x>W-20||y<20||y>H-20){ m=Math.max(0,d-2); break outer; }
+    }
+  }
+  r.guide=Math.min(100,m);
+}
+const RW=Object.fromEntries(RUNWAYS.map(r=>[r.k,r]));
+
+const PLANE_PX   = 46;    // rendered longest side
+const GRAB_FINE  = 34, GRAB_COARSE = 52;
+const TAP_PX     = 25;    // shorter drag = tap, route discarded
+const RESAMPLE   = 12;    // uniform spacing before smoothing
+let   LOOKAHEAD  = 40;    // ≈ 1.15x the turn radius at the slow end; tuned in
+                          // tools/dbg — below ~38 the tracker is underdamped
+let   MAX_TURN   = 1.1;   // rad/s  → r = v/ω = 35px at 38px/s
+let   TURN_DEAD  = 0.004; // rad; below this the plane is already on heading
+const LAND_ANGLE = 26*Math.PI/180;
+const WARN_D     = 78, CRASH_D = 31;
+const EDGE_M     = 54;    // loiter turn-back margin
+const ENTER_M    = 26;
+
+/* ═══════════════ small maths ═══════════════ */
+const TAU=Math.PI*2;
+const clamp=(v,a,b)=>v<a?a:v>b?b:v;
+const lerp=(a,b,t)=>a+(b-a)*t;
+const wrap=a=>{a=(a+Math.PI)%TAU; if(a<0)a+=TAU; return a-Math.PI;};
+const lerpAng=(a,b,t)=>a+wrap(b-a)*t;
+const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
+let rnd=Math.random;
+const rr=(a,b)=>a+rnd()*(b-a);
+const pick=a=>a[(rnd()*a.length)|0];
+
+function rwLocal(r,x,y){
+  const dx=x-r.cx, dy=y-r.cy;
+  return {p:dx*r.ux+dy*r.uy, q:-dx*r.uy+dy*r.ux};
+}
+
+/* ═══════════════ path conditioning (§5.3a) ═══════════════
+   Raw pointer data is never steered against. Resample to uniform spacing,
+   round the corners off with Chaikin, then store cumulative arc length so
+   the pursuit step can walk the line in real distance. */
+function resample(pts,step){
+  if(pts.length<2) return pts.slice();
+  const out=[{x:pts[0].x,y:pts[0].y}];
+  let carry=0;
+  for(let i=0;i<pts.length-1;i++){
+    let ax=pts[i].x, ay=pts[i].y;
+    const bx=pts[i+1].x, by=pts[i+1].y;
+    let seg=Math.hypot(bx-ax,by-ay);
+    if(seg<1e-9) continue;
+    let ux=(bx-ax)/seg, uy=(by-ay)/seg;
+    let need=step-carry;
+    while(need<=seg){
+      ax+=ux*need; ay+=uy*need; seg-=need;
+      out.push({x:ax,y:ay});
+      need=step;
+    }
+    carry=seg;
+  }
+  const last=pts[pts.length-1], tail=out[out.length-1];
+  if(Math.hypot(last.x-tail.x,last.y-tail.y)>step*0.4) out.push({x:last.x,y:last.y});
+  return out;
+}
+function chaikin(pts){
+  if(pts.length<3) return pts.slice();
+  const out=[pts[0]];
+  for(let i=0;i<pts.length-1;i++){
+    const a=pts[i], b=pts[i+1];
+    out.push({x:a.x*0.75+b.x*0.25, y:a.y*0.75+b.y*0.25});
+    out.push({x:a.x*0.25+b.x*0.75, y:a.y*0.25+b.y*0.75});
+  }
+  out.push(pts[pts.length-1]);
+  return out;
+}
+function buildPath(raw){
+  let p=resample(raw,RESAMPLE);
+  if(p.length<2) return null;
+  p=chaikin(chaikin(p));
+  const cum=[0];
+  for(let i=1;i<p.length;i++) cum.push(cum[i-1]+Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y));
+  const total=cum[cum.length-1];
+  if(total<1) return null;
+  return {pts:p,cum,total};
+}
+function pointAt(path,s){
+  const {pts,cum}=path;
+  s=clamp(s,0,path.total);
+  let lo=0,hi=cum.length-1;
+  while(lo<hi-1){ const m=(lo+hi)>>1; if(cum[m]<=s) lo=m; else hi=m; }
+  const seg=cum[hi]-cum[lo];
+  const t=seg>1e-9?(s-cum[lo])/seg:0;
+  return {x:lerp(pts[lo].x,pts[hi].x,t), y:lerp(pts[lo].y,pts[hi].y,t)};
+}
+
+/* ═══════════════ pure pursuit (§5.3b) ═══════════════
+   Chase a point LOOKAHEAD px further along the line, never a waypoint. The
+   closest-point search only ever runs forward from a cached index, which is
+   what stops the plane latching onto a segment it has already flown and
+   thrashing its desired heading every frame. */
+function pursue(pl,dt){
+  const path=pl.path;
+  let desired=null;
+  if(path){
+    const {pts}=path;
+    let bi=pl.pi, bt=0, bd=Infinity;
+    for(let i=pl.pi;i<pts.length-1;i++){
+      const a=pts[i], b=pts[i+1];
+      const vx=b.x-a.x, vy=b.y-a.y;
+      const L2=vx*vx+vy*vy;
+      let t=L2>1e-9?((pl.x-a.x)*vx+(pl.y-a.y)*vy)/L2:0;
+      t=clamp(t,0,1);
+      const dx=a.x+vx*t-pl.x, dy=a.y+vy*t-pl.y;
+      const d=dx*dx+dy*dy;
+      if(d<bd){ bd=d; bi=i; bt=t; }
+    }
+    pl.pi=bi;                                   // monotonic: never searches backwards
+    const segLen=path.cum[bi+1]-path.cum[bi];
+    const sNow=path.cum[bi]+bt*segLen;
+    pl.offPath=Math.sqrt(bd);
+    if(sNow>=path.total-1.5){                   // line flown out
+      pl.path=null; pl.pi=0;
+    }else{
+      const t=pointAt(path,sNow+LOOKAHEAD);
+      desired=Math.atan2(t.y-pl.y,t.x-pl.x);
+    }
+  }
+  if(desired===null && pl.entered){
+    /* No line left: loiter. Reflect off the boundary rather than flying out
+       of play, which is what keeps the sky filling up. */
+    let dx=Math.cos(pl.hdg), dy=Math.sin(pl.hdg), turn=false;
+    if(pl.x<EDGE_M&&dx<0){dx=-dx;turn=true;}
+    if(pl.x>W-EDGE_M&&dx>0){dx=-dx;turn=true;}
+    if(pl.y<EDGE_M&&dy<0){dy=-dy;turn=true;}
+    if(pl.y>H-EDGE_M&&dy>0){dy=-dy;turn=true;}
+    if(turn) desired=Math.atan2(dy,dx);
+  }
+  if(desired!==null){
+    let err=wrap(desired-pl.hdg);
+    if(Math.abs(err)<TURN_DEAD) err=0;          // below this it is already on heading
+    pl.hdg+=clamp(err,-MAX_TURN*dt,MAX_TURN*dt);
+  }
+}
+
+/* ═══════════════ state ═══════════════ */
+const S={
+  phase:'start',            // start | play | paused | over
+  t:0, score:0, best:0,
+  tally:{A:0,B:0,C:0},
+  planes:[], fx:[], rings:[], floats:[], pairs:[],
+  spawnIn:1.2, seq:0,
+  speed:38, maxAir:3, gap:7,
+  shake:0, flash:0, overAt:0, over:null,
+  draft:null, sel:null, warnBeep:0, reduced:false
+};
+
+const airborne = ()=>S.planes.filter(p=>!p.landing).length;
+
+function difficulty(){
+  const t=S.t/60;                                   // minutes elapsed (§6)
+  S.maxAir=Math.min(8,3+Math.floor(t/2));           // 3 → 8, one per ~2 min
+  S.gap=7.0-3.8*Math.min(1,t/12);                   // 7.0 → 3.2 s
+  S.speed=38+20*Math.min(1,t/14);                   // 38 → 58 px/s
+}
+
+/* ═══════════════ arrivals (§5.1) ═══════════════ */
+function makePlane(k,x,y,hdg){
+  return {id:++S.seq,type:TYPES[k],x,y,hdg,spd:S.speed,
+    path:null,pi:0,routed:false,offPath:0,entered:false,
+    landing:null,fade:1,bob:rnd()*TAU,trail:[],warn:0,dead:false};
+}
+function trySpawn(){
+  const k=pick(KEYS), off=PLANE_PX;
+  const side=(rnd()*4)|0;
+  let x,y,base;
+  if(side===0){ x=rr(80,W-80); y=-off;   base=Math.PI/2; }
+  else if(side===1){ x=W+off;  y=rr(80,H-80); base=Math.PI; }
+  else if(side===2){ x=rr(80,W-80); y=H+off; base=-Math.PI/2; }
+  else            { x=-off;    y=rr(80,H-80); base=0; }
+  const hdg=base+rr(-20,20)*Math.PI/180;
+  for(const p of S.planes) if(Math.hypot(p.x-x,p.y-y)<150) return false;
+  S.planes.push(makePlane(k,x,y,hdg));
+  sfx('arrive');
+  return true;
+}
+
+/* ═══════════════ landing (§5.4) ═══════════════ */
+function checkLanding(pl){
+  if(!pl.routed) return;            // fairness guard — §5.4(1), §10.3
+  for(const r of RUNWAYS){
+    const {p,q}=rwLocal(r,pl.x,pl.y);
+    if(Math.abs(p)>r.hl||Math.abs(q)>r.hw*1.08) continue;
+    if(Math.abs(wrap(pl.hdg-r.rad))>LAND_ANGLE) continue;   // crossing traffic flies over
+    if(r.k===pl.type.dest) beginRollout(pl,r,p,q);
+    else endGame('wrong',pl,r);
+    return;
+  }
+}
+function beginRollout(pl,r,p,q){
+  pl.landing={r,p,q,spd:pl.spd,fade:0};
+  pl.path=null; pl.trail.length=0;
+  if(S.sel===pl) S.sel=null;
+  S.score++; S.tally[r.k]++;
+  scoreEl.textContent=S.score;
+  burst(pl.x,pl.y,r.col,S.reduced?7:20);
+  S.rings.push({x:pl.x,y:pl.y,r:14,max:96,col:r.col,a:1});
+  S.floats.push({x:pl.x,y:pl.y-30,txt:'+1',col:'#FFFFFF',a:1.25,vy:-34});
+  sfx('land');
+}
+function rollout(pl,dt){
+  const L=pl.landing, r=L.r;
+  L.spd=Math.max(0,L.spd-46*dt);
+  L.p+=L.spd*dt;
+  L.q=lerp(L.q,0,1-Math.exp(-7*dt));
+  pl.hdg=lerpAng(pl.hdg,r.rad,1-Math.exp(-6*dt));
+  pl.x=r.cx+r.ux*L.p-r.uy*L.q;
+  pl.y=r.cy+r.uy*L.p+r.ux*L.q;
+  if(L.spd<=0.01||L.p>r.hl*0.92){
+    L.fade+=dt/0.35;
+    pl.fade=clamp(1-L.fade,0,1);
+    if(L.fade>=1) pl.dead=true;
+  }
+}
+
+/* ═══════════════ separation (§5.5) ═══════════════ */
+function separation(dt){
+  const live=S.planes.filter(p=>!p.landing&&p.entered&&!p.dead);
+  for(const p of live) p.warn=Math.max(0,p.warn-dt*3);
+  S.pairs=[];
+  for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
+    const a=live[i],b=live[j], d=dist(a,b);
+    if(d<CRASH_D){ endGame('crash',a,b); return; }
+    if(d<WARN_D){
+      a.warn=b.warn=1; S.pairs.push([a,b]);
+      if(S.warnBeep<=0){ sfx('warn'); S.warnBeep=0.45; }
+    }
+  }
+}
+
+/* ═══════════════ game over (§5.6) ═══════════════ */
+function endGame(kind,a,b){
+  if(S.phase!=='play') return;
+  S.phase='over'; S.overAt=0;
+  S.best=Math.max(S.best,S.score);
+  S.flash=1; S.shake=S.reduced?0:15;
+  const x=kind==='crash'?(a.x+b.x)/2:a.x, y=kind==='crash'?(a.y+b.y)/2:a.y;
+  burst(x,y,'#FF7A3D',S.reduced?12:46);
+  burst(x,y,'#FFD48A',S.reduced?6:22);
+  S.rings.push({x,y,r:16,max:180,col:'#FF7A3D',a:1});
+  S.over={kind,x,y,
+    plane:a.type?a.type.dest:null,
+    intended:a.type?RW[a.type.dest]:null,
+    actual:kind==='wrong'?b:null};
+  sfx('crash');
+}
+
+/* ═══════════════ effects ═══════════════ */
+function burst(x,y,col,n){
+  for(let i=0;i<n;i++){
+    const a=rnd()*TAU, s=rr(40,190);
+    S.fx.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:rr(.35,.9),t:0,col,r:rr(1.6,4.2)});
+  }
+}
+function stepFx(dt){
+  for(const p of S.fx){ p.t+=dt; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.94; p.vy*=0.94; }
+  S.fx=S.fx.filter(p=>p.t<p.life);
+  for(const r of S.rings){ r.r+=(r.max-r.r)*Math.min(1,dt*5.5); r.a-=dt*1.6; }
+  S.rings=S.rings.filter(r=>r.a>0);
+  for(const f of S.floats){ f.y+=f.vy*dt; f.vy*=0.94; f.a-=dt*0.85; }
+  S.floats=S.floats.filter(f=>f.a>0);
+  S.shake*=Math.exp(-dt*6);
+  S.flash=Math.max(0,S.flash-dt*2.2);
+}
+
+/* ═══════════════ simulation step ═══════════════ */
+function step(dt){
+  if(S.phase==='play'){
+    S.t+=dt;
+    difficulty();
+    S.warnBeep-=dt;
+    S.spawnIn-=dt;
+    if(S.spawnIn<=0 && !S.noSpawn){
+      if(airborne()>=S.maxAir) S.spawnIn=0.8;             // hold, don't go negative
+      else S.spawnIn = trySpawn() ? S.gap*rr(0.88,1.12) : 0.6;
+    }
+    for(const pl of S.planes){
+      if(pl.landing){ rollout(pl,dt); continue; }
+      pl.spd=S.speed;
+      pursue(pl,dt);
+      pl.x+=Math.cos(pl.hdg)*pl.spd*dt;
+      pl.y+=Math.sin(pl.hdg)*pl.spd*dt;
+      pl.bob+=dt*2.2;
+      if(!pl.entered && pl.x>ENTER_M && pl.x<W-ENTER_M && pl.y>ENTER_M && pl.y<H-ENTER_M)
+        pl.entered=true;
+      if(!S.reduced){
+        pl.trail.push({x:pl.x,y:pl.y,a:1});
+        if(pl.trail.length>26) pl.trail.shift();
+        for(const t of pl.trail) t.a-=dt*1.5;
+      }
+      checkLanding(pl);
+      if(S.phase!=='play') break;
+    }
+    S.planes=S.planes.filter(p=>!p.dead);
+    if(S.phase==='play') separation(dt);
+  }else if(S.phase==='over'){
+    S.overAt+=dt;
+    if(S.overAt>=0.6 && veil.hidden) showOver();
+  }
+  stepFx(dt);
+}
+
+/* ═══════════════ canvas ═══════════════ */
+const cv=document.getElementById('cv');
+const ctx=cv.getContext('2d');
+const dpr=Math.min(window.devicePixelRatio||1,2);
+cv.width=W*dpr; cv.height=H*dpr;
+ctx.setTransform(dpr,0,0,dpr,0,0);
+
+const IMG={}, SIL={};
+function silhouette(img){
+  const c=document.createElement('canvas');
+  c.width=img.width; c.height=img.height;
+  const x=c.getContext('2d');
+  x.drawImage(img,0,0);
+  x.globalCompositeOperation='source-in';
+  x.fillStyle='rgba(3,10,28,.5)';
+  x.fillRect(0,0,c.width,c.height);
+  return c;
+}
+function hexa(h,a){
+  const n=parseInt(h.slice(1),16);
+  return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')';
+}
+function rrect(x,y,w,h,r){
+  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); return; }
+  ctx.beginPath();
+  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
+  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+}
+
+/* ═══════════════ approach guides (§7) ═══════════════ */
+function drawGuides(){
+  const hot=S.draft?S.draft.pl.type.dest:(S.sel?S.sel.type.dest:null);
+  const march=S.reduced?0:(S.t*34)%30;
+  for(const r of RUNWAYS){
+    const on=hot===r.k;
+
+    /* runway outline: a soft glow, never a hard box (§7) */
+    ctx.save();
+    ctx.translate(r.cx,r.cy); ctx.rotate(r.rad);
+    ctx.shadowColor=r.col; ctx.shadowBlur=on?30:14;
+    rrect(-r.hl,-r.hw,r.len,r.wid,13);
+    if(on){ ctx.fillStyle=hexa(r.col,.13); ctx.fill(); }
+    ctx.strokeStyle=hexa(r.col,on?.8:.33);
+    ctx.lineWidth=on?3:1.8;
+    ctx.stroke();
+    ctx.restore();
+
+    const g=r.guide;
+    if(g<14) continue;
+    const bx=-r.ux, by=-r.uy;                    // back from the threshold
+    const px=-r.uy, py=r.ux;                     // across it
+    const hw=r.ghw;
+    const ex=r.tx+bx*g, ey=r.ty+by*g;
+    const lw=on?3.4:2.6;
+
+    ctx.save();
+    ctx.lineCap='butt';
+    /* A dark backing keeps the dashes legible on a busy, dark map (§7) — but
+       only just wider than the dash. Any heavier and the backing is the thing
+       you see instead of the guide. */
+    for(const pass of [0,1]){
+      ctx.strokeStyle = pass ? hexa(r.col,on?1:.72) : 'rgba(4,16,42,.5)';
+      ctx.lineWidth   = pass ? lw : lw+4.5;
+      if(pass){ ctx.setLineDash([12,8]); ctx.lineDashOffset=-march; }
+      for(const sg of [-1,1]){
+        ctx.beginPath();
+        ctx.moveTo(r.tx+px*hw*sg,r.ty+py*hw*sg);
+        ctx.lineTo(ex+px*hw*sg,ey+py*hw*sg);
+        ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+
+    /* chevrons marching toward the threshold */
+    ctx.lineCap='round'; ctx.lineJoin='round';
+    const cw=hw*0.72, ck=11;
+    for(let d=g-10-march;d>ck+8;d-=30){
+      const ax=r.tx+bx*d, ay=r.ty+by*d;
+      const tx2=r.tx+bx*(d-ck), ty2=r.ty+by*(d-ck);   // tip points at the runway
+      ctx.beginPath();
+      ctx.moveTo(ax+px*cw,ay+py*cw); ctx.lineTo(tx2,ty2); ctx.lineTo(ax-px*cw,ay-py*cw);
+      ctx.strokeStyle='rgba(4,16,42,.5)'; ctx.lineWidth=lw+4; ctx.stroke();
+      ctx.strokeStyle=hexa(r.col,on?1:.7);  ctx.lineWidth=lw; ctx.stroke();
+    }
+
+    /* gate across the threshold */
+    ctx.beginPath();
+    ctx.moveTo(r.tx+px*r.hw,r.ty+py*r.hw);
+    ctx.lineTo(r.tx-px*r.hw,r.ty-py*r.hw);
+    ctx.strokeStyle='rgba(4,16,42,.55)'; ctx.lineWidth=(on?5:3.6)+4.5; ctx.stroke();
+    ctx.strokeStyle=hexa(r.col,on?1:.85);  ctx.lineWidth=on?5:3.6; ctx.stroke();
+    ctx.restore();
+  }
+}
+
+/* ═══════════════ routes ═══════════════ */
+function strokePts(pts,col,wide,dash,off){
+  if(pts.length<2) return;
+  ctx.save();
+  ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<pts.length;i++) ctx.lineTo(pts[i].x,pts[i].y);
+  ctx.strokeStyle='rgba(4,16,42,.5)'; ctx.lineWidth=wide+7; ctx.stroke();
+  if(dash){ ctx.setLineDash(dash); ctx.lineDashOffset=off; }
+  ctx.strokeStyle=col; ctx.lineWidth=wide; ctx.stroke();
+  ctx.restore();
+}
+function drawRoutes(){
+  const off=S.reduced?0:-(S.t*40)%22;
+  for(const pl of S.planes){
+    if(!pl.path||pl.landing) continue;
+    strokePts(pl.path.pts.slice(pl.pi),hexa(pl.type.col,.85),3.4,[12,10],off);
+    const e=pl.path.pts[pl.path.pts.length-1];
+    ctx.save();
+    ctx.fillStyle=hexa(pl.type.col,.9);
+    ctx.beginPath(); ctx.arc(e.x,e.y,4.5,0,TAU); ctx.fill();
+    ctx.restore();
+  }
+  if(S.draft&&S.draft.pts.length>1)
+    strokePts(S.draft.pts,hexa(S.draft.pl.type.col,.95),4,null,0);
+}
+
+/* ═══════════════ planes ═══════════════ */
+function drawPlane(pl){
+  const img=IMG[pl.type.k];
+  const k=PLANE_PX/Math.max(img.width,img.height);
+  const w=img.width*k, h=img.height*k;
+  const bob=S.reduced?0:Math.sin(pl.bob)*1.5;
+  const ang=pl.hdg+Math.PI/2;                    // sprites are nose-up (§2.2)
+
+  if(pl.warn>0.01){                              // proximity halo
+    const pulse=S.reduced?.55:.4+Math.sin(S.t*13)*.28;
+    ctx.save();
+    ctx.fillStyle='rgba(255,64,64,'+(pl.warn*pulse*.5)+')';
+    ctx.beginPath(); ctx.arc(pl.x,pl.y+bob,34,0,TAU); ctx.fill();
+    ctx.strokeStyle='rgba(255,90,90,'+(pl.warn*.95)+')';
+    ctx.lineWidth=2.4;
+    ctx.beginPath(); ctx.arc(pl.x,pl.y+bob,30,0,TAU); ctx.stroke();
+    ctx.restore();
+  }
+  if(S.sel===pl||(S.draft&&S.draft.pl===pl)){    // selection ring
+    ctx.save();
+    ctx.strokeStyle=hexa(pl.type.col,.95); ctx.lineWidth=2.6;
+    ctx.setLineDash([7,6]); ctx.lineDashOffset=S.reduced?0:-(S.t*46)%13;
+    ctx.beginPath(); ctx.arc(pl.x,pl.y+bob,27,0,TAU); ctx.stroke();
+    ctx.restore();
+  }
+  if(pl.trail.length>1){                          // wake
+    ctx.save(); ctx.lineCap='round';
+    for(let i=1;i<pl.trail.length;i++){
+      const a=pl.trail[i-1], b=pl.trail[i];
+      if(a.a<=0) continue;
+      ctx.strokeStyle=hexa(pl.type.col,a.a*.2*pl.fade);
+      ctx.lineWidth=a.a*3.4;
+      ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    }
+    ctx.restore();
+  }
+  ctx.save();                                     // altitude shadow
+  ctx.globalAlpha=pl.fade*.85;
+  ctx.translate(pl.x+7,pl.y+bob+10); ctx.rotate(ang);
+  ctx.drawImage(SIL[pl.type.k],-w/2,-h/2,w,h);
+  ctx.restore();
+
+  ctx.save();
+  ctx.globalAlpha=pl.fade;
+  ctx.translate(pl.x,pl.y+bob); ctx.rotate(ang);
+  ctx.drawImage(img,-w/2,-h/2,w,h);
+  ctx.restore();
+}
+
+/* ═══════════════ frame ═══════════════ */
+function render(){
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  if(S.shake>0.3&&!S.reduced)
+    ctx.translate(rr(-S.shake,S.shake),rr(-S.shake,S.shake));
+  ctx.clearRect(-40,-40,W+80,H+80);
+  /* While the screen shakes, overscan the map so no gap opens at the edges.
+     The sim is frozen by then, so the few px of scale cost nothing. */
+  const os=S.shake>0.3?Math.ceil(S.shake)+2:0;
+  if(IMG.map) ctx.drawImage(IMG.map,-os,-os,W+os*2,H+os*2);
+  else { ctx.fillStyle='#0A1834'; ctx.fillRect(-os,-os,W+os*2,H+os*2); }
+
+  drawGuides();
+  drawRoutes();
+
+  if(S.pairs) for(const [a,b] of S.pairs){       // conflict link
+    ctx.save();
+    ctx.strokeStyle='rgba(255,70,70,.85)'; ctx.lineWidth=2.2;
+    ctx.setLineDash([7,7]); ctx.lineDashOffset=S.reduced?0:-(S.t*60)%14;
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    ctx.restore();
+  }
+
+  for(const pl of S.planes) if(pl.landing) drawPlane(pl);
+  for(const pl of S.planes) if(!pl.landing) drawPlane(pl);
+
+  for(const r of S.rings){
+    ctx.save();
+    ctx.strokeStyle=hexa(r.col,Math.max(0,r.a)*.85);
+    ctx.lineWidth=3.4;
+    ctx.beginPath(); ctx.arc(r.x,r.y,r.r,0,TAU); ctx.stroke();
+    ctx.restore();
+  }
+  for(const p of S.fx){
+    const a=1-p.t/p.life;
+    ctx.fillStyle=hexa(p.col,a*.95);
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r*a,0,TAU); ctx.fill();
+  }
+  for(const f of S.floats){
+    ctx.save();
+    ctx.font='800 29px '+FONT;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.lineWidth=6; ctx.strokeStyle='rgba(4,16,42,'+Math.min(1,f.a)*.8+')';
+    ctx.strokeText(f.txt,f.x,f.y);
+    ctx.fillStyle=hexa(f.col,Math.min(1,f.a));
+    ctx.fillText(f.txt,f.x,f.y);
+    ctx.restore();
+  }
+  if(S.flash>0.001){
+    ctx.fillStyle='rgba(255,48,48,'+S.flash*.42+')';
+    ctx.fillRect(-40,-40,W+80,H+80);
+  }
+}
+const FONT='ui-sans-serif,-apple-system,"Segoe UI",Inter,Roboto,sans-serif';
+
+/* ═══════════════ audio (§8.5) ═══════════════ */
+let AC=null, muted=true;
+function tone(f0,f1,dur,type,vol,at){
+  if(!AC) return;
+  const t0=AC.currentTime+(at||0);
+  const o=AC.createOscillator(), g=AC.createGain();
+  o.type=type||'sine';
+  o.frequency.setValueAtTime(f0,t0);
+  if(f1!==f0) o.frequency.exponentialRampToValueAtTime(Math.max(1,f1),t0+dur);
+  g.gain.setValueAtTime(0.0001,t0);
+  g.gain.exponentialRampToValueAtTime(vol,t0+0.012);
+  g.gain.exponentialRampToValueAtTime(0.0001,t0+dur);
+  o.connect(g); g.connect(AC.destination);
+  o.start(t0); o.stop(t0+dur+0.02);
+}
+const SFX={
+  grab:  ()=>tone(520,760,.09,'sine',.16),
+  route: ()=>{tone(430,430,.07,'triangle',.12);tone(660,660,.09,'triangle',.1,.06);},
+  arrive:()=>{tone(300,420,.12,'sine',.1);},
+  warn:  ()=>{tone(220,180,.16,'square',.07);},
+  land:  ()=>{[523,659,784,1046].forEach((f,i)=>tone(f,f,.16,'sine',.13,i*.055));},
+  crash: ()=>{tone(180,44,.55,'sawtooth',.22);tone(90,30,.7,'square',.14,.03);}
+};
+function sfx(n){ if(!muted&&AC&&SFX[n]) try{SFX[n]();}catch(e){} }
+
+/* ═══════════════ DOM ═══════════════ */
+const scoreEl=document.getElementById('score');
+const veil=document.getElementById('veil');
+const card=document.getElementById('card');
+const btnSound=document.getElementById('btnSound');
+const btnPause=document.getElementById('btnPause');
+const BRAND='<div class="brand"><span class="mark">V</span>acation Tracker</div>';
+const NAMES={A:'Beach',B:'Ski',C:'City'};
+const COLW={a:'green',b:'orange',c:'purple'};
+
+/* ═══════════════ cards ═══════════════ */
+function chip(k){
+  const t=TYPES[k];
+  return '<div class="route"><img src="'+ART[k]+'" alt=""><div><div class="k" style="color:'+
+    t.col+'">'+t.dest+' '+NAMES[t.dest]+'</div><div class="n">'+COLW[k]+' plane</div></div></div>';
+}
+function showStart(){
+  card.className='card';
+  card.innerHTML=BRAND+
+    '<p class="eyebrow">Departures</p>'+
+    '<h1>Holiday <em>Landing</em></h1>'+
+    '<p class="lede">Three islands, three kinds of time off. Every plane is painted for one of them — get each one home.</p>'+
+    '<ol class="rules">'+
+      '<li>Drag from a plane to draw its route. Let go and it flies the line.</li>'+
+      '<li>Finish the line <b>straight down the runway</b>. A plane only lands on a clean approach — otherwise it flies over and you go around.</li>'+
+      '<li>Send a plane to the wrong island, or let two touch in the air, and the shift is over.</li>'+
+    '</ol>'+
+    '<div class="routes">'+chip('a')+chip('b')+chip('c')+'</div>'+
+    '<button class="btn" id="go">Start the shift</button>'+
+    '<p class="keys"><kbd>Space</kbd> start · <kbd>P</kbd> pause · <kbd>M</kbd> sound</p>';
+  veil.hidden=false;
+  const b=document.getElementById('go');
+  b.onclick=()=>{unlockAudio();startGame();};
+  b.focus({preventScroll:true});
+}
+function showOver(){
+  const o=S.over||{kind:'crash'};
+  let why;
+  if(o.kind==='wrong'){
+    const want=o.plane, got=o.actual.k;
+    why='The <b>'+COLW[want.toLowerCase()]+'</b> plane was booked for <b>'+NAMES[want]+
+      ' ('+want+')</b>. You landed it on <b>'+NAMES[got]+' ('+got+')</b>.';
+  }else{
+    why='Two planes touched in the air. The red halo and the dashed link are your last warning — break one of them off.';
+  }
+  card.className='card gover';
+  card.innerHTML='<p class="eyebrow">'+(o.kind==='wrong'?'Wrong island':'Mid-air')+'</p>'+
+    '<h1>Shift over</h1>'+
+    '<p class="reason">'+why+'</p>'+
+    '<div class="final">'+
+      '<div class="stat big"><u>Landed</u><s>'+S.score+'</s></div>'+
+      '<div class="stat"><u>A Beach</u><s>'+S.tally.A+'</s></div>'+
+      '<div class="stat"><u>B Ski</u><s>'+S.tally.B+'</s></div>'+
+      '<div class="stat"><u>C City</u><s>'+S.tally.C+'</s></div>'+
+      '<div class="stat"><u>Best</u><s>'+S.best+'</s></div>'+
+    '</div>'+
+    '<button class="btn" id="go">Fly again</button>'+
+    '<p class="keys"><kbd>Space</kbd> restart</p>';
+  veil.hidden=false;
+  const b=document.getElementById('go');
+  b.onclick=()=>startGame();
+  b.focus({preventScroll:true});
+}
+function showPause(){
+  card.className='card';
+  card.innerHTML=BRAND+'<p class="eyebrow">Paused</p><h1>Tower on hold</h1>'+
+    '<p class="lede">Nothing moves until you say so.</p>'+
+    '<button class="btn" id="go">Resume</button>'+
+    '<p class="keys"><kbd>P</kbd> resume</p>';
+  veil.hidden=false;
+  const b=document.getElementById('go');
+  b.onclick=()=>setPause(false);
+  b.focus({preventScroll:true});
+}
+
+/* ═══════════════ flow ═══════════════ */
+function startGame(){
+  S.phase='play'; S.t=0; S.score=0; S.tally={A:0,B:0,C:0};
+  S.planes.length=0; S.fx.length=0; S.rings.length=0; S.floats.length=0;
+  S.pairs=[]; S.spawnIn=1.1; S.seq=0; S.shake=0; S.flash=0;
+  S.draft=null; S.sel=null; S.over=null; S.overAt=0;
+  difficulty();
+  scoreEl.textContent='0';
+  veil.hidden=true;
+  trySpawn();
+}
+function setPause(on){
+  if(on&&S.phase==='play'){ S.phase='paused'; showPause(); }
+  else if(!on&&S.phase==='paused'){ S.phase='play'; veil.hidden=true; }
+  const p=S.phase==='paused';
+  btnPause.setAttribute('aria-label',p?'Resume':'Pause');
+  document.getElementById('icPause').setAttribute('d',p?'M8 5l11 7-11 7V5z':'M9 5v14M15 5v14');
+}
+function unlockAudio(){
+  if(AC) { if(AC.state==='suspended') AC.resume(); return; }
+  try{ AC=new (window.AudioContext||window.webkitAudioContext)(); }catch(e){}
+}
+function setMuted(m){
+  muted=m;
+  btnSound.setAttribute('aria-pressed',String(!m));
+  btnSound.setAttribute('aria-label',m?'Sound off':'Sound on');
+  document.getElementById('mute1').style.display=m?'':'none';
+  document.getElementById('mute2').style.display=m?'none':'';
+  if(!m) unlockAudio();
+}
+
+/* ═══════════════ input (§5.2) ═══════════════ */
+function toLocal(e){
+  const b=cv.getBoundingClientRect();
+  return {x:(e.clientX-b.left)*(W/b.width), y:(e.clientY-b.top)*(H/b.height)};
+}
+function grabRadius(e){
+  if(e.pointerType==='mouse') return GRAB_FINE;
+  /* 52 logical px is only ~21 CSS px on a 516px-wide phone playfield, well
+     under a finger. Keep the target at least ~40 CSS px however small the
+     canvas is drawn, capped so neighbouring planes stay distinguishable. */
+  const b=cv.getBoundingClientRect();
+  const scale=b.width>0?W/b.width:1;
+  return Math.min(112,Math.max(GRAB_COARSE,40*scale));
+}
+cv.addEventListener('pointerdown',e=>{
+  if(S.phase!=='play') return;
+  const p=toLocal(e), rad=grabRadius(e);
+  let best=null,bd=rad*rad;
+  for(const pl of S.planes){
+    if(pl.landing) continue;
+    const d=(pl.x-p.x)**2+(pl.y-p.y)**2;
+    if(d<bd){ bd=d; best=pl; }
+  }
+  if(!best) return;
+  e.preventDefault();
+  cv.setPointerCapture(e.pointerId);
+  S.sel=best;
+  S.draft={pl:best,pts:[{x:best.x,y:best.y},p],len:0,pid:e.pointerId};
+  sfx('grab');
+});
+cv.addEventListener('pointermove',e=>{
+  const d=S.draft;
+  if(!d||d.pid!==e.pointerId) return;
+  const p=toLocal(e), last=d.pts[d.pts.length-1];
+  const step=Math.hypot(p.x-last.x,p.y-last.y);
+  if(step<1.5) return;
+  d.len+=step; d.pts.push(p);
+});
+function commit(e){
+  const d=S.draft;
+  if(!d||d.pid!==e.pointerId) return;
+  S.draft=null;
+  try{cv.releasePointerCapture(e.pointerId);}catch(_){}
+  if(d.len<TAP_PX){ S.sel=null; return; }       // tap: keep the old route
+  const path=buildPath(d.pts);
+  if(!path){ S.sel=null; return; }
+  d.pl.path=path; d.pl.pi=0; d.pl.routed=true;
+  S.sel=null;
+  sfx('route');
+}
+cv.addEventListener('pointerup',commit);
+cv.addEventListener('pointercancel',e=>{ if(S.draft&&S.draft.pid===e.pointerId){S.draft=null;S.sel=null;} });
+
+btnSound.onclick=()=>setMuted(!muted);
+btnPause.onclick=()=>setPause(S.phase==='play');
+addEventListener('keydown',e=>{
+  const k=e.key.toLowerCase();
+  if(k==='m'){ setMuted(!muted); e.preventDefault(); return; }
+  if(k==='p'){ if(S.phase==='play'||S.phase==='paused'){ setPause(S.phase==='play'); e.preventDefault(); } return; }
+  if(e.code==='Space'||k===' '){
+    if(e.target&&e.target.tagName==='BUTTON') return;   // let the button handle it
+    if(S.phase==='start'){ unlockAudio(); startGame(); e.preventDefault(); }
+    else if(S.phase==='over'&&S.overAt>=0.6){ startGame(); e.preventDefault(); }
+  }
+});
+document.addEventListener('visibilitychange',()=>{ if(document.hidden&&S.phase==='play') setPause(true); });
+
+/* ═══════════════ loop ═══════════════ */
+const mq=matchMedia('(prefers-reduced-motion: reduce)');
+S.reduced=mq.matches;
+mq.addEventListener?.('change',e=>{S.reduced=e.matches;});
+
+let last=0;
+function frame(ts){
+  const dt=last?Math.min(0.032,(ts-last)/1000):0.016;   // §9: never teleport
+  last=ts;
+  if(S.phase!=='paused' && !S.hold) step(dt);
+  render();
+  requestAnimationFrame(frame);
+}
+
+/* ═══════════════ boot ═══════════════ */
+let pending=4;
+function ready(){ if(--pending===0){ showStart(); requestAnimationFrame(frame); } }
+for(const [key,src] of [['map',ART.map],['a',ART.a],['b',ART.b],['c',ART.c]]){
+  const im=new Image();
+  im.onload=()=>{ IMG[key]=im; if(key!=='map') SIL[key]=silhouette(im); ready(); };
+  im.onerror=()=>ready();
+  im.src=src;
+}
+setMuted(true);
+
+/* ═══════════════ test hook (§12) ═══════════════ */
+window.__HL={
+  S,RUNWAYS,RW,TYPES,W,H,LOOKAHEAD,MAX_TURN,WARN_D,CRASH_D,LAND_ANGLE,TAP_PX,
+  start:startGame,
+  step,
+  seed(n){ let a=n>>>0; rnd=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t; return ((t^t>>>14)>>>0)/4294967296;}; },
+  clear(){ S.planes.length=0; S.pairs=[]; },
+  add(k,x,y,deg,routed){
+    const p=makePlane(k,x,y,deg*Math.PI/180);
+    p.entered=true; if(routed) p.routed=true;
+    S.planes.push(p); return p.id;
+  },
+  get(id){ return S.planes.find(p=>p.id===id); },
+  route(id,pts){
+    const p=S.planes.find(q=>q.id===id); if(!p) return false;
+    const path=buildPath(pts); if(!path) return false;
+    p.path=path; p.pi=0; p.routed=true; return true;
+  },
+  freeze(v){ S.noSpawn=!!v; },
+  hold(v){ S.hold=!!v; },        // stop the rAF loop stepping, so tests drive time
+  tune(o){ if(o.look!==undefined)LOOKAHEAD=o.look; if(o.turn!==undefined)MAX_TURN=o.turn;
+           if(o.dead!==undefined)TURN_DEAD=o.dead;
+           return {look:LOOKAHEAD,turn:MAX_TURN,dead:TURN_DEAD}; },
+  guides(){ return RUNWAYS.map(r=>({k:r.k,g:r.guide,
+    tx:r.tx,ty:r.ty,ex:r.tx-r.ux*r.guide,ey:r.ty-r.uy*r.guide,
+    hw:r.ghw,ux:r.ux,uy:r.uy})); }
+};
+})();
+</script>
