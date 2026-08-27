@@ -24,12 +24,33 @@ for(const [k,v] of Object.entries(subs)){
 fs.mkdirSync(path.join(root,'dist'),{recursive:true});
 fs.writeFileSync(path.join(root,'dist','artifact.html'),src);
 
-const standalone='<!doctype html>\n<html lang="en">\n<head>\n<meta charset="utf-8">\n'+
-  '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">\n'+
-  '<meta name="description" content="Air-traffic control for people who need a holiday. '+
-  'Land every plane on the runway painted its colour.">\n'+
-  '<meta name="theme-color" content="#F3F0F8">\n'+
-  src.replace(/^<title>/,'<title>')+'\n</html>\n';
+/* Link-preview tags. claude.ai serves static Open Graph metadata on its artifact
+   routes - a made-up id returns the same "Claude Artifact" preview as a real one -
+   so an artifact link can never unfurl with this game's own title. Hosted
+   anywhere else, these tags and dist/holiday-landing-og.jpg do the job.
+   og:image is relative so the file stays free of absolute URLs; every common
+   unfurler resolves it against the page URL. Make it absolute if yours does not. */
+const DESC='Play Holiday Landing, an air-traffic-control game for Vacation Tracker. '+
+  'Drag each plane a route and land it on the runway painted its colour.';
+const head=[
+  '<meta charset="utf-8">',
+  '<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">',
+  '<meta name="theme-color" content="#F3F0F8">',
+  '<meta name="description" content="'+DESC+'">',
+  '<meta property="og:type" content="website">',
+  '<meta property="og:site_name" content="Vacation Tracker">',
+  '<meta property="og:title" content="Holiday Landing">',
+  '<meta property="og:description" content="'+DESC+'">',
+  '<meta property="og:image" content="holiday-landing-og.jpg">',
+  '<meta property="og:image:width" content="1200">',
+  '<meta property="og:image:height" content="630">',
+  '<meta property="og:image:alt" content="Holiday Landing - three island runways seen from above">',
+  '<meta name="twitter:card" content="summary_large_image">',
+  '<meta name="twitter:title" content="Holiday Landing">',
+  '<meta name="twitter:description" content="'+DESC+'">',
+  '<meta name="twitter:image" content="holiday-landing-og.jpg">'
+].join('\n');
+const standalone='<!doctype html>\n<html lang="en">\n<head>\n'+head+'\n'+src+'\n</html>\n';
 fs.writeFileSync(path.join(root,'dist','holiday-landing.html'),standalone);
 
 for(const f of ['artifact.html','holiday-landing.html']){

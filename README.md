@@ -15,6 +15,8 @@ tools/prep_assets.py     keys, trims and compresses the art
 tools/build.js           inlines the art as data URIs -> dist/
 dist/holiday-landing.html   standalone
 dist/artifact.html          same page without the document skeleton
+dist/holiday-landing-og.jpg link-preview image (1200x630)
+tools/make-og.js            renders that image
 tests/                   Playwright suite (41 tests)
 RUNWAYS.md               the runway corners, and how they were measured
 ```
@@ -23,6 +25,7 @@ RUNWAYS.md               the runway corners, and how they were measured
 npm install
 python3 tools/prep_assets.py     # art  -> assets/
 node tools/build.js              # art + code -> dist/
+node tools/make-og.js            # link-preview image
 npx playwright test              # 41 tests
 ```
 
@@ -168,3 +171,21 @@ prove the plane is flying the line mid-drag rather than waiting for the mouse.
 (sweep a curve across the map, finish it down the runway, land). Chromium is
 launched from `/opt/pw-browsers/chromium`; adjust `playwright.config.js`
 elsewhere.
+
+## Link previews
+
+`dist/holiday-landing.html` carries Open Graph and Twitter card tags, and
+`dist/holiday-landing-og.jpg` is the 1200x630 preview image. Host the two side
+by side and the link unfurls with the game's title, description and artwork.
+
+`og:image` is deliberately relative, so the file contains no absolute URLs and
+stays portable across hosts; every common unfurler resolves it against the page
+URL. Make it absolute if a particular one does not.
+
+**This cannot be made to work for a claude.ai artifact link.** That route serves
+static Open Graph metadata — fetched as a link scraper, a made-up artifact id
+returns exactly the same `Claude Artifact` / `Try out Artifacts created by Claude
+users` preview as a real one, none of the page's own words reach the scraper,
+and the response carries `x-robots-tag: none` with `robots: noindex, nofollow`.
+The title and description set at publish time drive the artifact gallery and the
+browser tab, not link previews.
