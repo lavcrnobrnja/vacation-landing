@@ -15,7 +15,7 @@ tools/prep_assets.py     keys, trims and compresses the art
 tools/build.js           inlines the art as data URIs -> dist/
 dist/holiday-landing.html   standalone
 dist/artifact.html          same page without the document skeleton
-tests/                   Playwright suite (34 tests)
+tests/                   Playwright suite (41 tests)
 RUNWAYS.md               the runway corners, and how they were measured
 ```
 
@@ -23,7 +23,7 @@ RUNWAYS.md               the runway corners, and how they were measured
 npm install
 python3 tools/prep_assets.py     # art  -> assets/
 node tools/build.js              # art + code -> dist/
-npx playwright test              # 34 tests
+npx playwright test              # 41 tests
 ```
 
 ## Size
@@ -84,7 +84,15 @@ arrives about as long before contact — 78px early on, 109px at full speed.
 **8. Arrival types come from a shuffled bag.** §5.1 picks "uniformly from a/b/c",
 which produces runs of six or seven. See **Arrivals** below.
 
-**9. Planes turn back at the edges instead of flying away.** The spec does not
+**9. The portrait gate is limited to touch devices.** §10.5 asks for a portrait
+gate on small screens. Keyed on width and orientation alone it also fires on a
+desktop: a narrow window, or an embedded side panel like the artifact preview
+pane, is portrait and under 640px too — but a 610x660 panel still yields a
+580x387 playfield, larger than the landscape-phone case the spec accepts. The
+gate now also requires `pointer:coarse`, and the cards compact so they fit
+inside a short playfield rather than scrolling out of reach.
+
+**10. Planes turn back at the edges instead of flying away.** The spec does not
 say what happens to a plane that reaches the boundary. Letting them leave would
 make the game trivial — you could ignore every plane. They now reflect off the
 edge and loiter, which is what makes the concurrency cap the difficulty lever §6
@@ -156,7 +164,7 @@ prove the plane is flying the line mid-drag rather than waiting for the mouse.
 
 ## Tests
 
-34 Playwright tests covering every item in §12, plus the end-to-end player loop
+41 Playwright tests covering every item in §12, plus the end-to-end player loop
 (sweep a curve across the map, finish it down the runway, land). Chromium is
 launched from `/opt/pw-browsers/chromium`; adjust `playwright.config.js`
 elsewhere.

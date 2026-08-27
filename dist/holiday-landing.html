@@ -158,9 +158,55 @@ kbd{font-family:inherit;font-size:10.5px;font-weight:750;background:#fff;border:
   .ftr{flex-wrap:wrap;gap:6px 14px}
   .hint{white-space:normal}
 }
-/* phones only: an 800px-wide tablet in portrait still gets a usable
-   790x526 playfield, so gating it would be a worse experience */
-@media (max-width:640px) and (orientation:portrait){ .rotate{display:grid} }
+/* A narrow window — or an embedded side panel, which is what the artifact
+   preview is — leaves a short playfield, so the cards have to shrink to fit
+   inside it rather than scroll. This touches the cards only; the header and
+   footer still fit at this width and stay put. */
+@media (max-width:820px), (max-height:620px){
+  .veil{padding:10px}
+  .card{padding:15px 17px;border-radius:15px}
+  .card .brand{margin-bottom:6px;font-size:16px}
+  .eyebrow{font-size:10px;letter-spacing:.16em;margin-bottom:4px}
+  h1{font-size:23px;margin-bottom:5px}
+  .lede{margin-bottom:9px;font-size:12.5px;line-height:1.38;max-width:34ch}
+  ol.rules{margin-bottom:10px}
+  ol.rules li{font-size:12px;margin-bottom:5px;padding-left:25px;line-height:1.35}
+  ol.rules li::before{width:17px;height:17px;font-size:10px}
+  .routes{margin-bottom:10px;gap:6px}
+  .route{padding:4px 8px 4px 5px;border-radius:11px;gap:5px}
+  .route img{width:22px;height:22px}
+  .route .k{font-size:12px}
+  .route .n{font-size:10.5px}
+  .btn{padding:9px 20px;font-size:14.5px;border-radius:12px}
+  .keys,.by{margin-top:8px;font-size:10.5px}
+  .reason{padding:9px 11px;font-size:12.5px;margin-bottom:10px}
+  .final{margin-bottom:10px;gap:6px}
+  .stat{padding:7px 11px;min-width:56px;border-radius:11px}
+  .stat u{font-size:9px}
+  .stat s{font-size:18px}
+}
+
+/* On a very short viewport — a phone on its side — the keyboard hint is both
+   the least useful line on the card and the last one to fit. */
+@media (max-height:470px){ .keys{display:none} }
+/* Shorter again and the framing line has to go too; the three rules still
+   say everything a player needs. */
+@media (max-height:400px){ .lede{display:none} }
+
+/* Narrower still and the playfield is shorter than any usable card, so the
+   overlay centres on the window rather than on the playfield — there is plenty
+   of empty page above and below it at that size. */
+@media (max-width:520px), (max-height:430px){
+  .veil{position:fixed;inset:0;z-index:30}
+}
+
+/* Phones held upright, and nothing else. `pointer:coarse` is what keeps this
+   off a desktop: a narrow browser window or a side panel is portrait and under
+   640px too, but it still gets a usable playfield (610x660 gives 580x387,
+   larger than the landscape-phone case), so gating it would be a regression. */
+@media (max-width:640px) and (orientation:portrait) and (pointer:coarse){
+  .rotate{display:grid}
+}
 @media (prefers-reduced-motion:reduce){ .card{animation:none} }
 </style>
 
