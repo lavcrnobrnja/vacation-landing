@@ -1,18 +1,15 @@
 const { test, expect } = require('@playwright/test');
 const { load, startClean } = require('./helpers');
 
-/* The shipped curve. §6's original tops out between 10 and 14 minutes and moves
-   so little early that the opening minutes feel identical; this one reaches
-   full pressure at ~7 minutes and steps the aircraft cap every ~54s. */
+/* One discrete step per elapsed minute, topping out at four. §6's original
+   ramped continuously and only reached full pressure between 10 and 14 minutes. */
 const TABLE = [
-  { min: 0,  maxAir: 3,  gap: 6.20, speed: 38.0 },
-  { min: 1,  maxAir: 4,  gap: 5.35, speed: 43.5 },
-  { min: 2,  maxAir: 5,  gap: 4.50, speed: 48.9 },
-  { min: 3,  maxAir: 7,  gap: 3.66, speed: 54.4 },
-  { min: 4,  maxAir: 8,  gap: 2.81, speed: 59.8 },
-  { min: 5,  maxAir: 9,  gap: 2.30, speed: 65.3 },
-  { min: 6,  maxAir: 11, gap: 2.30, speed: 68.0 },
-  { min: 12, maxAir: 11, gap: 2.30, speed: 68.0 },
+  { min: 0,  maxAir: 3,  gap: 6.2, speed: 38 },
+  { min: 1,  maxAir: 5,  gap: 4.9, speed: 46 },
+  { min: 2,  maxAir: 7,  gap: 3.9, speed: 54 },
+  { min: 3,  maxAir: 9,  gap: 3.0, speed: 61 },
+  { min: 4,  maxAir: 11, gap: 2.3, speed: 68 },
+  { min: 12, maxAir: 11, gap: 2.3, speed: 68 },
 ];
 
 /** Run the real game loop with a scripted player who clears a plane every ~2.5s
@@ -59,7 +56,7 @@ test('the difficulty curves follow the table (12.12)', async ({ page }) => {
     H.start(); H.hold(true); H.freeze(true);
     const got = {};
     for (const m of marks) {
-      H.S.t = m * 60; H.S.lastMax = 99; H.step(0);
+      H.S.t = m * 60; H.step(0);
       got[m] = { maxAir: H.S.maxAir, gap: H.S.gap, speed: H.S.speed };
     }
     return got;
@@ -85,14 +82,11 @@ test('it actually gets harder: the cap climbs and arrivals speed up', async ({ p
   const r = await play(page, 7);
   expect(r.phase, 'the scripted player should survive seven minutes').toBe('play');
 
-  // the aircraft cap must rise every single minute until it tops out
+  // the cap must rise at each of the first four minutes, then hold
   const caps = r.perMinute;
   expect(caps.length).toBeGreaterThanOrEqual(7);
-  for (let i = 1; i < 6; i++)
-    expect(caps[i], `cap at minute ${i + 1} (${caps[i]}) should exceed minute ${i} (${caps[i - 1]})`)
-      .toBeGreaterThan(caps[i - 1]);
-  expect(caps[0]).toBe(4);
-  expect(caps[6]).toBe(11);
+  expect(caps.slice(0, 4), 'caps at minutes 1-4').toEqual([5, 7, 9, 11]);
+  for (const c of caps.slice(4)) expect(c, 'the cap holds after minute four').toBe(11);
 
   // and arrivals must visibly speed up: the sixth minute should bring
   // substantially more traffic than the first
@@ -104,17 +98,34 @@ test('the ramp is steeper than the one it replaced', async ({ page }) => {
   await load(page);
   const now = await page.evaluate(() => {
     const H = window.__HL; H.start(); H.hold(true); H.freeze(true);
-    H.S.t = 4 * 60; H.S.lastMax = 99; H.step(0);
+    H.S.t = 4 * 60; H.step(0);
     return { maxAir: H.S.maxAir, gap: H.S.gap, speed: H.S.speed };
   });
-  // §6's original at four minutes: 5 aircraft, 5.7s gap, 44px/s
-  expect(now.maxAir).toBeGreaterThan(5);
-  expect(now.gap).toBeLessThan(5.7);
-  expect(now.speed).toBeGreaterThan(44);
-  // and steeper again than the first pass at it: 7 aircraft, 3.93s, 52.9px/s
-  expect(now.maxAir).toBeGreaterThanOrEqual(8);
-  expect(now.gap).toBeLessThan(3.0);
-  expect(now.speed).toBeGreaterThan(58);
+  // §6's original at four minutes gave 5 aircraft / 5.7s / 44px/s; four minutes
+  // is now the point at which the game is at full pressure instead
+  expect(now.maxAir).toBe(11);
+  expect(now.gap).toBeCloseTo(2.3, 2);
+  expect(now.speed).toBe(68);
+});
+
+test('difficulty steps on the minute and holds flat in between', async ({ page }) => {
+  await load(page);
+  const changes = await page.evaluate(() => {
+    const H = window.__HL;
+    H.start(); H.hold(true); H.freeze(true);
+    const at = [];
+    let prev = null;
+    for (let sec = 0; sec <= 400; sec++) {
+      H.S.t = sec; H.step(0);
+      const now = H.S.maxAir + '/' + H.S.gap.toFixed(1) + '/' + H.S.speed;
+      if (now !== prev) at.push(sec);
+      prev = now;
+    }
+    return at;
+  });
+  // every change lands exactly on a minute boundary, and there are only four
+  expect(changes, 'difficulty should change only at 0, 60, 120, 180 and 240s')
+    .toEqual([0, 60, 120, 180, 240]);
 });
 
 test('the first arrival is gentle and the sky starts empty', async ({ page }) => {
@@ -123,19 +134,6 @@ test('the first arrival is gentle and the sky starts empty', async ({ page }) =>
   const s = await page.evaluate(() => ({ air: window.__HL.S.planes.length, gap: window.__HL.S.gap }));
   expect(s.gap).toBeCloseTo(6.2, 1);
   expect(s.air).toBe(0);
-});
-
-test('a rising aircraft cap is announced on the playfield', async ({ page }) => {
-  await load(page);
-  const shown = await page.evaluate(() => {
-    const H = window.__HL;
-    H.seed(5); H.start(); H.hold(true); H.freeze(true);
-    for (let i = 0; i < 60 * 45; i++) H.step(1 / 60);    // ~1.8s after the first step,
-                                                        // inside the note's 2.6s life
-    return { notes: H.S.notes.map(n => n.txt), cap: H.S.maxAir };
-  });
-  expect(shown.cap).toBe(4);
-  expect(shown.notes.join(' '), 'the step up should be announced').toMatch(/4 aircraft inbound/);
 });
 
 test('the header shows the shift clock ticking', async ({ page }) => {

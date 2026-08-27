@@ -71,9 +71,10 @@ the drag on every pointer move and hands it straight to the plane, so the plane
 is flying your line while you are still drawing it — and if it catches up with
 the end of the line, it homes on the cursor rather than dropping the route.
 
-**6. A steeper difficulty curve.** §6's tops out between 10 and 14 minutes and
-barely moves early: two minutes in it had added one aircraft, shaved 0.6s off the
-arrival gap and 3px/s off the speed. See below.
+**6. A stepped difficulty curve.** §6's ramps continuously and tops out between
+10 and 14 minutes; two minutes in it had added one aircraft, shaved 0.6s off the
+arrival gap and 3px/s off the speed. This steps once per elapsed minute and
+reaches full pressure at four. See below.
 
 **7. The separation warning grows with speed.** §5.5's fixed 78px gives a
 head-on pair 0.6s of warning at the opening 38px/s but only 0.35s at the top
@@ -94,20 +95,18 @@ intends it to be.
 | Elapsed | aircraft cap | arrival gap | speed |
 |---|---|---|---|
 | 0:00 | 3 | 6.2s | 38 |
-| 1:00 | 4 | 5.4s | 44 |
-| 2:00 | 5 | 4.5s | 49 |
-| 3:00 | 7 | 3.7s | 54 |
-| 4:00 | 8 | 2.8s | 60 |
-| 5:00 | 9 | 2.3s | 65 |
-| 6:00+ | 11 | 2.3s | 68 |
+| 1:00 | 5 | 4.9s | 46 |
+| 2:00 | 7 | 3.9s | 54 |
+| 3:00 | 9 | 3.0s | 61 |
+| 4:00+ | 11 | 2.3s | 68 |
 
-Full pressure at ~5.5 minutes rather than 10–14, and the cap steps every ~43s
-(4 at 0:44, 7 at 2:53, 11 at 5:46) so the climb is something you notice
-happening. Two things make it legible rather than merely present: a shift clock
-in the header, and a banner on the playfield each time the cap rises.
+One discrete step per elapsed minute, topping out at four. Tiers rather than a
+continuous ramp: nothing announces the change, so each step has to be big enough
+to feel at the moment it lands. A shift clock in the header is the only readout.
 
-At four minutes: §6's curve gave 5 aircraft / 5.7s / 44px/s, and this one gives
-8 / 2.8s / 60px/s.
+§6's original curve ramped continuously and reached full pressure somewhere
+between 10 and 14 minutes; at four minutes it gave 5 aircraft / 5.7s / 44px/s,
+where this is already at its ceiling.
 
 ## Arrivals
 

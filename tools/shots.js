@@ -98,22 +98,30 @@ const shot=(pg,n)=>pg.screenshot({path:'shots/'+n+'.png'});
   }
   await pg.close();
 
-  // 10. the aircraft cap stepping up
+  // 10. full pressure at four minutes, with no announcement of any kind
   pg=await b.newPage({viewport:{width:1280,height:900}});
   await boot(pg);
-  // with a scripted controller keeping the sky clear, so the run survives to 0:45
   await pg.evaluate(()=>{const H=window.__HL,S=H.S;H.seed(6);H.start();H.hold(true);
-    let next=2.5;
-    for(let i=0;i<60*45;i++){
+    let next=2.2;
+    for(let i=0;i<60*242;i++){          // a controller keeping pace to 4:02...
       H.step(1/60);
       const air=S.planes.filter(p=>!p.landing);
       for(let a=0;a<air.length;a++)for(let b=a+1;b<air.length;b++)
         if(Math.hypot(air[a].x-air[b].x,air[a].y-air[b].y)<H.WARN_D+6){
           const k=S.planes.indexOf(air[b]); if(k>=0) S.planes.splice(k,1);}
-      if(S.t>=next){next+=2.5;const l=S.planes.filter(p=>!p.landing);
+      if(S.t>=next){next+=2.2;const l=S.planes.filter(p=>!p.landing);
         if(l.length) S.planes.splice(S.planes.indexOf(l[0]),1);}
-    }});
-  await pg.waitForTimeout(150); await shot(pg,'10-traffic-up');
+    }
+    for(let i=0;i<60*17;i++){           // ...then falling behind on landings, so
+      H.step(1/60);                     // the sky fills toward the cap
+      const air=S.planes.filter(p=>!p.landing);
+      for(let a=0;a<air.length;a++)for(let b=a+1;b<air.length;b++)
+        if(Math.hypot(air[a].x-air[b].x,air[a].y-air[b].y)<H.CRASH_D+8){
+          const k=S.planes.indexOf(air[b]); if(k>=0) S.planes.splice(k,1);}
+    }
+    console.log('at '+Math.floor(S.t)+'s: cap '+S.maxAir+', gap '+S.gap+', speed '+S.speed
+      +', airborne '+S.planes.filter(p=>!p.landing).length);});
+  await pg.waitForTimeout(150); await shot(pg,'10-full-pressure');
   await pg.close();
 
   // 7. landscape phone (10.5)
