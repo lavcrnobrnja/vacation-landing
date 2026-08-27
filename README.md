@@ -15,7 +15,7 @@ tools/prep_assets.py     keys, trims and compresses the art
 tools/build.js           inlines the art as data URIs -> dist/
 dist/holiday-landing.html   standalone
 dist/artifact.html          same page without the document skeleton
-tests/                   Playwright suite (33 tests)
+tests/                   Playwright suite (34 tests)
 RUNWAYS.md               the runway corners, and how they were measured
 ```
 
@@ -23,7 +23,7 @@ RUNWAYS.md               the runway corners, and how they were measured
 npm install
 python3 tools/prep_assets.py     # art  -> assets/
 node tools/build.js              # art + code -> dist/
-npx playwright test              # 33 tests
+npx playwright test              # 34 tests
 ```
 
 ## Size
@@ -76,11 +76,14 @@ barely moves early: two minutes in it had added one aircraft, shaved 0.6s off th
 arrival gap and 3px/s off the speed. See below.
 
 **7. The separation warning grows with speed.** §5.5's fixed 78px gives a
-head-on pair 0.6s of warning at the opening 38px/s but only 0.37s at the new top
+head-on pair 0.6s of warning at the opening 38px/s but only 0.35s at the top
 speed. The radius is now `max(78, 31 + speed × 1.15)`, so the warning always
-arrives about as long before contact — 78px early on, 105px at full speed.
+arrives about as long before contact — 78px early on, 109px at full speed.
 
-**8. Planes turn back at the edges instead of flying away.** The spec does not
+**8. Arrival types come from a shuffled bag.** §5.1 picks "uniformly from a/b/c",
+which produces runs of six or seven. See **Arrivals** below.
+
+**9. Planes turn back at the edges instead of flying away.** The spec does not
 say what happens to a plane that reaches the boundary. Letting them leave would
 make the game trivial — you could ignore every plane. They now reflect off the
 edge and loiter, which is what makes the concurrency cap the difficulty lever §6
@@ -90,22 +93,35 @@ intends it to be.
 
 | Elapsed | aircraft cap | arrival gap | speed |
 |---|---|---|---|
-| 0:00 | 3 | 6.6s | 38 |
-| 1:00 | 4 | 5.9s | 42 |
-| 2:00 | 5 | 5.3s | 45 |
-| 3:00 | 6 | 4.6s | 49 |
-| 4:00 | 7 | 3.9s | 53 |
-| 5:00 | 8 | 3.3s | 57 |
-| 6:00 | 9 | 2.6s | 60 |
-| 7:00+ | 10 | 2.6s | 64 |
+| 0:00 | 3 | 6.2s | 38 |
+| 1:00 | 4 | 5.4s | 44 |
+| 2:00 | 5 | 4.5s | 49 |
+| 3:00 | 7 | 3.7s | 54 |
+| 4:00 | 8 | 2.8s | 60 |
+| 5:00 | 9 | 2.3s | 65 |
+| 6:00+ | 11 | 2.3s | 68 |
 
-Full pressure at ~7 minutes rather than 10–14, and the cap steps every ~54s so
-the climb is something you notice happening. Two things make it legible rather
-than merely present: a shift clock in the header, and a banner on the playfield
-each time the cap rises.
+Full pressure at ~5.5 minutes rather than 10–14, and the cap steps every ~43s
+(4 at 0:44, 7 at 2:53, 11 at 5:46) so the climb is something you notice
+happening. Two things make it legible rather than merely present: a shift clock
+in the header, and a banner on the playfield each time the cap rises.
 
-For comparison, at four minutes §6's curve gave 5 aircraft / 5.7s / 44px/s;
-this one gives 7 / 3.9s / 53px/s.
+At four minutes: §6's curve gave 5 aircraft / 5.7s / 44px/s, and this one gives
+8 / 2.8s / 60px/s.
+
+## Arrivals
+
+Types come from a shuffled bag holding two of each colour, not an independent
+roll per arrival. A uniform roll genuinely does hand out long runs — over a
+300-arrival session it produces a run of four or more *every time*, and a run of
+six or more in about half of them, with runs of ten observed.
+
+The bag keeps the mix even over every six arrivals; a hard cap stops a fourth of
+the same colour; and a nudge toward whatever the sky holds least of stops one
+runway getting swamped. Measured over 2,500 arrivals: an exact 33.3/33.3/33.3
+split, longest run 3, and about one arrival in five still repeats the last
+colour — a sequence that never repeats reads as mechanical, so the cap is a
+ceiling rather than a target.
 
 ## Steering
 
@@ -141,7 +157,7 @@ prove the plane is flying the line mid-drag rather than waiting for the mouse.
 
 ## Tests
 
-33 Playwright tests covering every item in §12, plus the end-to-end player loop
+34 Playwright tests covering every item in §12, plus the end-to-end player loop
 (sweep a curve across the map, finish it down the runway, land). Chromium is
 launched from `/opt/pw-browsers/chromium`; adjust `playwright.config.js`
 elsewhere.

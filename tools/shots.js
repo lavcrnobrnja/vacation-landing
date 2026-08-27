@@ -101,10 +101,10 @@ const shot=(pg,n)=>pg.screenshot({path:'shots/'+n+'.png'});
   // 10. the aircraft cap stepping up
   pg=await b.newPage({viewport:{width:1280,height:900}});
   await boot(pg);
-  // with a scripted controller keeping the sky clear, so the run survives to 0:56
+  // with a scripted controller keeping the sky clear, so the run survives to 0:45
   await pg.evaluate(()=>{const H=window.__HL,S=H.S;H.seed(6);H.start();H.hold(true);
     let next=2.5;
-    for(let i=0;i<60*56;i++){
+    for(let i=0;i<60*45;i++){
       H.step(1/60);
       const air=S.planes.filter(p=>!p.landing);
       for(let a=0;a<air.length;a++)for(let b=a+1;b<air.length;b++)

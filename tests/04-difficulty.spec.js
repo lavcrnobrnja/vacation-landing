@@ -5,15 +5,14 @@ const { load, startClean } = require('./helpers');
    so little early that the opening minutes feel identical; this one reaches
    full pressure at ~7 minutes and steps the aircraft cap every ~54s. */
 const TABLE = [
-  { min: 0,  maxAir: 3,  gap: 6.60, speed: 38.0 },
-  { min: 1,  maxAir: 4,  gap: 5.93, speed: 41.7 },
-  { min: 2,  maxAir: 5,  gap: 5.27, speed: 45.4 },
-  { min: 3,  maxAir: 6,  gap: 4.60, speed: 49.1 },
-  { min: 4,  maxAir: 7,  gap: 3.93, speed: 52.9 },
-  { min: 5,  maxAir: 8,  gap: 3.27, speed: 56.6 },
-  { min: 6,  maxAir: 9,  gap: 2.60, speed: 60.3 },
-  { min: 7,  maxAir: 10, gap: 2.60, speed: 64.0 },
-  { min: 12, maxAir: 10, gap: 2.60, speed: 64.0 },
+  { min: 0,  maxAir: 3,  gap: 6.20, speed: 38.0 },
+  { min: 1,  maxAir: 4,  gap: 5.35, speed: 43.5 },
+  { min: 2,  maxAir: 5,  gap: 4.50, speed: 48.9 },
+  { min: 3,  maxAir: 7,  gap: 3.66, speed: 54.4 },
+  { min: 4,  maxAir: 8,  gap: 2.81, speed: 59.8 },
+  { min: 5,  maxAir: 9,  gap: 2.30, speed: 65.3 },
+  { min: 6,  maxAir: 11, gap: 2.30, speed: 68.0 },
+  { min: 12, maxAir: 11, gap: 2.30, speed: 68.0 },
 ];
 
 /** Run the real game loop with a scripted player who clears a plane every ~2.5s
@@ -93,7 +92,7 @@ test('it actually gets harder: the cap climbs and arrivals speed up', async ({ p
     expect(caps[i], `cap at minute ${i + 1} (${caps[i]}) should exceed minute ${i} (${caps[i - 1]})`)
       .toBeGreaterThan(caps[i - 1]);
   expect(caps[0]).toBe(4);
-  expect(caps[6]).toBe(10);
+  expect(caps[6]).toBe(11);
 
   // and arrivals must visibly speed up: the sixth minute should bring
   // substantially more traffic than the first
@@ -112,13 +111,17 @@ test('the ramp is steeper than the one it replaced', async ({ page }) => {
   expect(now.maxAir).toBeGreaterThan(5);
   expect(now.gap).toBeLessThan(5.7);
   expect(now.speed).toBeGreaterThan(44);
+  // and steeper again than the first pass at it: 7 aircraft, 3.93s, 52.9px/s
+  expect(now.maxAir).toBeGreaterThanOrEqual(8);
+  expect(now.gap).toBeLessThan(3.0);
+  expect(now.speed).toBeGreaterThan(58);
 });
 
 test('the first arrival is gentle and the sky starts empty', async ({ page }) => {
   await load(page);
   await startClean(page);
   const s = await page.evaluate(() => ({ air: window.__HL.S.planes.length, gap: window.__HL.S.gap }));
-  expect(s.gap).toBeCloseTo(6.6, 1);
+  expect(s.gap).toBeCloseTo(6.2, 1);
   expect(s.air).toBe(0);
 });
 
@@ -127,7 +130,7 @@ test('a rising aircraft cap is announced on the playfield', async ({ page }) => 
   const shown = await page.evaluate(() => {
     const H = window.__HL;
     H.seed(5); H.start(); H.hold(true); H.freeze(true);
-    for (let i = 0; i < 60 * 56; i++) H.step(1 / 60);    // ~2s after the first step,
+    for (let i = 0; i < 60 * 45; i++) H.step(1 / 60);    // ~1.8s after the first step,
                                                         // inside the note's 2.6s life
     return { notes: H.S.notes.map(n => n.txt), cap: H.S.maxAir };
   });
@@ -142,4 +145,66 @@ test('the header shows the shift clock ticking', async ({ page }) => {
     for (let i = 0; i < 60 * 75; i++) H.step(1 / 60);
   });
   expect(await page.textContent('#clock')).toMatch(/^1:1[45]$/);
+});
+
+/* An independent uniform roll per arrival really does hand out long runs: over
+   a 300-arrival session it produces a run of four or more every time and a run
+   of six or more in about half of them. Arrivals come from a shuffled bag with
+   a hard cap instead. */
+test('arrival colours stay spread, and never run more than three deep', async ({ page }) => {
+  await load(page);
+  const sessions = await page.evaluate(() => {
+    const H = window.__HL, S = H.S, dt = 1 / 60;
+    const out = [];
+    for (let seed = 1; seed <= 5; seed++) {
+      H.seed(seed); H.start(); H.hold(true);
+      const seen = new Set(), seq = [];
+      let next = 2.0;
+      for (let i = 0; i < 60 * 60 * 6; i++) {
+        H.step(dt);
+        for (const p of S.planes) if (!seen.has(p.id)) { seen.add(p.id); seq.push(p.type.k); }
+        // a scripted controller, so arrivals keep coming instead of jamming at the cap
+        const air = S.planes.filter(p => !p.landing);
+        for (let a = 0; a < air.length; a++)
+          for (let c = a + 1; c < air.length; c++)
+            if (Math.hypot(air[a].x - air[c].x, air[a].y - air[c].y) < H.WARN_D + 6) {
+              const k = S.planes.indexOf(air[c]); if (k >= 0) S.planes.splice(k, 1);
+            }
+        if (S.t >= next) {
+          next += 2.0;
+          const l = S.planes.filter(p => !p.landing);
+          if (l.length) S.planes.splice(S.planes.indexOf(l[0]), 1);
+        }
+      }
+      out.push(seq);
+    }
+    return out;
+  });
+
+  const all = sessions.flat();
+  expect(all.length, 'needs a decent sample').toBeGreaterThan(400);
+
+  // no run of four, measured per session so a join cannot fake one
+  let worst = 0;
+  for (const seq of sessions) {
+    let last = null, run = 0;
+    for (const k of seq) { run = (k === last) ? run + 1 : 1; last = k; worst = Math.max(worst, run); }
+  }
+  expect(worst, `longest run of one colour was ${worst}`).toBeLessThanOrEqual(3);
+
+  const cnt = { a: 0, b: 0, c: 0 };
+  for (const k of all) cnt[k]++;
+  for (const k of ['a', 'b', 'c']) {
+    const share = cnt[k] / all.length;
+    expect(share, `${k} was ${(share * 100).toFixed(1)}% of arrivals`).toBeGreaterThan(0.30);
+    expect(share, `${k} was ${(share * 100).toFixed(1)}% of arrivals`).toBeLessThan(0.37);
+  }
+
+  // but it must not have over-corrected into a mechanical A-B-C alternation
+  let repeats = 0, pairs = 0;
+  for (const seq of sessions)
+    for (let i = 1; i < seq.length; i++) { pairs++; if (seq[i] === seq[i - 1]) repeats++; }
+  const rate = repeats / pairs;
+  expect(rate, `only ${(rate * 100).toFixed(1)}% of arrivals repeat the last colour`).toBeGreaterThan(0.08);
+  expect(rate, `${(rate * 100).toFixed(1)}% of arrivals repeat the last colour`).toBeLessThan(0.28);
 });

@@ -218,7 +218,6 @@ const TYPES={
   b:{k:'b',dest:'B',col:'#ED6E44',glow:'#FF8A5E'},
   c:{k:'c',dest:'C',col:'#7F00FF',glow:'#A855F7'}
 };
-const KEYS=['a','b','c'];
 
 /* Corners of the painted tarmac, read off the map against a labelled pixel grid
    (tools/dbg/grid.py) and checked by eye. The map is a perspective render, so
@@ -292,7 +291,6 @@ const lerpAng=(a,b,t)=>a+wrap(b-a)*t;
 const dist=(a,b)=>Math.hypot(a.x-b.x,a.y-b.y);
 let rnd=Math.random;
 const rr=(a,b)=>a+rnd()*(b-a);
-const pick=a=>a[(rnd()*a.length)|0];
 
 function rwLocal(r,x,y){
   const dx=x-r.cx, dy=y-r.cy;
@@ -455,9 +453,9 @@ const airborne = ()=>S.planes.filter(p=>!p.landing).length;
    (~54s) that the climb is something you notice happening. */
 function difficulty(){
   const t=S.t/60;                                   // minutes elapsed
-  S.maxAir=Math.min(10,3+Math.floor(t/0.9));        // 3 → 10 aircraft
-  S.gap=6.6-4.0*Math.min(1,t/6);                    // 6.6 → 2.6 s between arrivals
-  S.speed=38+26*Math.min(1,t/7);                    // 38 → 64 px/s
+  S.maxAir=Math.min(11,3+Math.floor(t/0.72));       // 3 → 11 aircraft, one per ~43s
+  S.gap=6.2-3.9*Math.min(1,t/4.6);                  // 6.2 → 2.3 s between arrivals
+  S.speed=38+30*Math.min(1,t/5.5);                  // 38 → 68 px/s
   if(S.maxAir>S.lastMax){
     if(S.lastMax) S.notes.push({txt:S.maxAir+' aircraft inbound',t:0});
     S.lastMax=S.maxAir;
@@ -465,13 +463,55 @@ function difficulty(){
 }
 
 /* ═══════════════ arrivals (§5.1) ═══════════════ */
+/* Arrival types come from a shuffled bag, not an independent roll per arrival.
+   A uniform roll really does hand out long runs: over a 300-arrival session it
+   produces a run of four or more every time and a run of six or more in about
+   half of them. A bag holding two of each keeps the mix even over every six
+   arrivals; a hard run cap stops a fourth of the same colour; and a nudge
+   toward whatever the sky holds least of stops one runway getting swamped.
+   Runs of two and three still happen — about one arrival in five repeats the
+   last colour — because a sequence that never repeats reads as mechanical. */
+const MAX_RUN=3;
+let bag=[], lastK=null, runK=0;
+function refillBag(){
+  bag=['a','a','b','b','c','c'];
+  for(let i=bag.length-1;i>0;i--){                  // Fisher-Yates on the seeded rng
+    const j=(rnd()*(i+1))|0;
+    const t=bag[i]; bag[i]=bag[j]; bag[j]=t;
+  }
+}
+function bestInBag(){
+  const air={a:0,b:0,c:0};
+  for(const p of S.planes) if(!p.landing) air[p.type.k]++;
+  let idx=-1, best=Infinity;
+  for(let i=0;i<bag.length;i++){
+    const k=bag[i];
+    if(k===lastK&&runK>=MAX_RUN) continue;          // never a fourth in a row
+    const score=air[k];                             // prefer the colour the sky
+    if(score<best){ best=score; idx=i; }            // has least of right now
+  }
+  return idx;
+}
+function nextType(){
+  if(!bag.length) refillBag();
+  let idx=bestInBag();
+  if(idx<0){                                        // what is left is all one colour
+    const rest=bag; refillBag(); bag=bag.concat(rest);
+    idx=bestInBag();
+  }
+  if(idx<0) idx=0;
+  const k=bag.splice(idx,1)[0];
+  runK=(k===lastK)?runK+1:1;
+  lastK=k;
+  return k;
+}
 function makePlane(k,x,y,hdg){
   return {id:++S.seq,type:TYPES[k],x,y,hdg,spd:S.speed,
     path:null,pi:0,routed:false,offPath:0,entered:false,
     landing:null,fade:1,bob:rnd()*TAU,trail:[],warn:0,dead:false,bank:0};
 }
 function trySpawn(){
-  const k=pick(KEYS), off=PLANE_PX;
+  const off=PLANE_PX;
   const side=(rnd()*4)|0;
   let x,y,base;
   if(side===0){ x=rr(80,W-80); y=-off;   base=Math.PI/2; }
@@ -480,7 +520,8 @@ function trySpawn(){
   else            { x=-off;    y=rr(80,H-80); base=0; }
   const hdg=base+rr(-20,20)*Math.PI/180;
   for(const p of S.planes) if(Math.hypot(p.x-x,p.y-y)<150) return false;
-  S.planes.push(makePlane(k,x,y,hdg));
+  S.planes.push(makePlane(nextType(),x,y,hdg));     // only now, so a rejected
+                                                    // spawn does not eat a draw
   sfx('arrive');
   return true;
 }
@@ -982,6 +1023,7 @@ function startGame(){
   S.phase='play'; S.t=0; S.score=0; S.tally={A:0,B:0,C:0};
   S.planes.length=0; S.fx.length=0; S.rings.length=0; S.floats.length=0;
   S.pairs=[]; S.notes.length=0; S.lastMax=0; S.shownSec=-1;
+  bag.length=0; lastK=null; runK=0;
   S.spawnIn=1.1; S.seq=0; S.shake=0; S.flash=0;
   S.draft=null; S.sel=null; S.over=null; S.overAt=0;
   difficulty();

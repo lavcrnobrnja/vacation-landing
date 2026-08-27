@@ -146,7 +146,7 @@ for (const minute of [0, 14]) {
     const speed = await page.evaluate(m => {
       window.__HL.S.t = m * 60; window.__HL.step(0); return window.__HL.S.speed;
     }, minute);
-    expect(speed).toBeCloseTo(minute === 0 ? 38 : 64, 0);   // 64 is the new top speed
+    expect(speed).toBeCloseTo(minute === 0 ? 38 : 68, 0);   // 68 is the top speed
 
     const id = await page.evaluate(() => window.__HL.add('a', 330, 240, 0, false));
     await drag(page, flick(330, 240));
