@@ -67,6 +67,34 @@ const shot=(pg,n)=>pg.screenshot({path:'shots/'+n+'.png'});
   await pg.waitForTimeout(150); await shot(pg,'6-warning');
   await pg.close();
 
+  // 9. a plane part-way along a hand-drawn line, to show it tracking
+  pg=await b.newPage({viewport:{width:1280,height:900}});
+  await boot(pg);
+  await pg.evaluate(()=>{const H=window.__HL;H.seed(4);H.start();H.freeze(true);H.hold(true);H.clear();});
+  {
+    const bb=await pg.evaluate(()=>{const r=document.getElementById('cv').getBoundingClientRect();
+      return{left:r.left,top:r.top,w:r.width,h:r.height,W:window.__HL.W,H:window.__HL.H};});
+    const Q=p=>({x:bb.left+p.x*bb.w/bb.W,y:bb.top+p.y*bb.h/bb.H});
+    const id=await pg.evaluate(()=>window.__HL.add('c',250,180,20,false));
+    const way=[[250,180],[380,170],[500,215],[580,330],[560,470],[640,600],[820,650],[980,700]];
+    const pts=[];
+    for(let i=0;i<way.length-1;i++){
+      const [ax,ay]=way[i],[bx,by]=way[i+1];
+      const n=Math.max(1,Math.round(Math.hypot(bx-ax,by-ay)/26));
+      for(let k=0;k<n;k++) pts.push({x:ax+(bx-ax)*k/n,y:ay+(by-ay)*k/n});
+    }
+    pts.push({x:way.at(-1)[0],y:way.at(-1)[1]});
+    const a2=Q(pts[0]); await pg.mouse.move(a2.x,a2.y); await pg.mouse.down();
+    for(const q of pts.slice(1)){const s2=Q(q);await pg.mouse.move(s2.x,s2.y);}
+    await pg.mouse.up();
+    await pg.evaluate(()=>{for(let i=0;i<430;i++) window.__HL.step(1/60);});
+    await pg.waitForTimeout(150);
+    await shot(pg,'9-tracking');
+    const off=await pg.evaluate(i=>window.__HL.get(i)?.offPath,id);
+    console.log('plane off its line at capture:', off===undefined?'n/a':off.toFixed(2)+'px');
+  }
+  await pg.close();
+
   // 7. landscape phone (10.5)
   pg=await b.newPage({viewport:{width:844,height:390},deviceScaleFactor:2});
   await boot(pg); await pg.waitForTimeout(300); await shot(pg,'7-phone-start');

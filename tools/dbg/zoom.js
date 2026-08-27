@@ -9,7 +9,7 @@ const { chromium } = require('@playwright/test');
   const cv=await pg.$('#cv');
   const box=await cv.boundingBox();
   // crop each runway + its corridor at high zoom
-  const rw=await pg.evaluate(()=>window.__HL.RUNWAYS.map(r=>({k:r.k,cx:r.cx,cy:r.cy,tx:r.tx,ty:r.ty,g:r.guide,ux:r.ux,uy:r.uy,len:r.len})));
+  const rw=await pg.evaluate(()=>window.__HL.RUNWAYS.map(r=>({k:r.k,cx:r.cx,cy:r.cy,tx:r.tx,ty:r.ty,g:r.guide,ux:r.ux,uy:r.uy,len:Math.max(r.len,r.hwNear*2.4)})));
   for(const r of rw){
     const mx=(r.cx+(r.tx-r.ux*r.g))/2, my=(r.cy+(r.ty-r.uy*r.g))/2;
     const s=170;

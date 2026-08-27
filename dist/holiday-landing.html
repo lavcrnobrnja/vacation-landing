@@ -223,28 +223,42 @@ const TYPES={
 };
 const KEYS=['a','b','c'];
 
-/* Fitted to the painted asphalt on the map, then checked by eye. §4.1's
-   headings are right; two of its three centres were not — see RUNWAYS.md. */
+/* Corners of the painted tarmac, read off the map against a labelled pixel grid
+   (tools/dbg/grid.py) and checked by eye. The map is a perspective render, so
+   every runway is a trapezoid — the near end of a slab is wider than the far
+   end — which is why a rotated rectangle could never be made to sit on one.
+   Order: near-left, far-left, far-right, near-right; "near" is the threshold. */
 const RUNWAYS=[
-  {k:'A',name:'the beach',cx:457,cy:524,deg:65,len:150,wid:86,col:'#22C55E'},
-  {k:'B',name:'the ski slope',cx:762,cy:280,deg:92,len:146,wid:78,col:'#ED6E44'},
-  {k:'C',name:'the city',cx:1103,cy:686,deg:-41,len:200,wid:108,col:'#7F00FF'}
+  {k:'A',name:'the beach',col:'#22C55E',
+   quad:[[398,455],[438,580],[520,569],[457,453]]},
+  {k:'B',name:'the ski slope',col:'#ED6E44',
+   quad:[[738,204],[715,333],[793,336],[805,206]]},
+  {k:'C',name:'the city',col:'#7F00FF',
+   quad:[[1001,700],[1123,595],[1194,626],[1073,746]]}
 ];
 for(const r of RUNWAYS){
-  r.rad=r.deg*Math.PI/180;
-  r.ux=Math.cos(r.rad); r.uy=Math.sin(r.rad);
-  r.hl=r.len/2; r.hw=r.wid/2;
-  r.tx=r.cx-r.ux*r.hl; r.ty=r.cy-r.uy*r.hl;   // threshold (approach end)
-  r.ex=r.cx+r.ux*r.hl; r.ey=r.cy+r.uy*r.hl;   // far end
+  r.pts=r.quad.map(([x,y])=>({x,y}));
+  const [n1,f1,f2,n2]=r.pts;
+  r.tx=(n1.x+n2.x)/2; r.ty=(n1.y+n2.y)/2;      // threshold: middle of the near edge
+  r.ex=(f1.x+f2.x)/2; r.ey=(f1.y+f2.y)/2;      // far end
+  r.cx=(r.tx+r.ex)/2; r.cy=(r.ty+r.ey)/2;
+  const dx=r.ex-r.tx, dy=r.ey-r.ty;
+  r.len=Math.hypot(dx,dy); r.hl=r.len/2;
+  r.ux=dx/r.len; r.uy=dy/r.len;
+  r.rad=Math.atan2(dy,dx); r.deg=r.rad*180/Math.PI;
+  const across=p=>Math.abs(-(p.x-r.cx)*r.uy+(p.y-r.cy)*r.ux);
+  r.hwNear=(across(n1)+across(n2))/2;
+  r.hwFar =(across(f1)+across(f2))/2;
+  r.hw=(r.hwNear+r.hwFar)/2;
   /* §7 / §10.2: a fixed 100px corridor runs off-canvas, so clamp to whatever
      still fits inside a 20px margin. Measured on the rails, not the centreline
      — C's threshold is near the bottom edge and its rails leave the canvas
      well before its centre does. */
-  r.ghw=r.hw*0.58;
+  r.ghw=r.hwNear*0.74;
   let m=100;
   outer: for(let d=0;d<=100;d+=2){
-    for(const s of [-1,1]){
-      const x=r.tx-r.ux*d-r.uy*r.ghw*s, y=r.ty-r.uy*d+r.ux*r.ghw*s;
+    for(const sg of [-1,1]){
+      const x=r.tx-r.ux*d-r.uy*r.ghw*sg, y=r.ty-r.uy*d+r.ux*r.ghw*sg;
       if(x<20||x>W-20||y<20||y>H-20){ m=Math.max(0,d-2); break outer; }
     }
   }
@@ -256,9 +270,12 @@ const PLANE_PX   = 46;    // rendered longest side
 const GRAB_FINE  = 34, GRAB_COARSE = 52;
 const TAP_PX     = 25;    // shorter drag = tap, route discarded
 const RESAMPLE   = 12;    // uniform spacing before smoothing
-let   LOOKAHEAD  = 40;    // ≈ 1.15x the turn radius at the slow end; tuned in
-                          // tools/dbg — below ~38 the tracker is underdamped
-let   MAX_TURN   = 1.1;   // rad/s  → r = v/ω = 35px at 38px/s
+/* Turning is defined by a fixed RADIUS, not a fixed rate. A fixed rate means
+   the turn radius grows with speed, so a plane that tracked the drawn line at
+   38px/s runs wide of it at 58 — which is exactly what it did. */
+let   TURN_R     = 20;    // px; the tightest circle a plane will fly
+let   LOOK_K     = 1.2;   // look-ahead in turn radii
+let   MAX_TURN   = 3.4;   // rad/s ceiling, so a braking plane cannot spin
 let   TURN_DEAD  = 0.004; // rad; below this the plane is already on heading
 const LAND_ANGLE = 26*Math.PI/180;
 const WARN_D     = 78, CRASH_D = 31;
@@ -279,6 +296,12 @@ const pick=a=>a[(rnd()*a.length)|0];
 function rwLocal(r,x,y){
   const dx=x-r.cx, dy=y-r.cy;
   return {p:dx*r.ux+dy*r.uy, q:-dx*r.uy+dy*r.ux};
+}
+/* The tarmac narrows toward the far end, so the landing box has to narrow with
+   it — a constant half-width would accept a plane that is visibly off the
+   concrete at one end and reject one that is on it at the other. */
+function halfWidth(r,p){
+  return lerp(r.hwNear,r.hwFar,clamp((p/r.hl+1)/2,0,1));
 }
 
 /* ═══════════════ path conditioning (§5.3a) ═══════════════
@@ -318,10 +341,27 @@ function chaikin(pts){
   out.push(pts[pts.length-1]);
   return out;
 }
+let   CHAIKIN    = 2;     // corner-rounding passes
+let   MAVG       = 1;     // 5-tap passes that take hand tremor out of the line
+/* A 5-tap mean over 12px-spaced points averages ~60px of arc: enough to erase
+   the wobble of a hand, gentle enough to leave a deliberate corner a corner.
+   Endpoints are pinned — the line has to start exactly at the plane. */
+function movavg(pts){
+  if(pts.length<5) return pts.slice();
+  const out=[pts[0]];
+  for(let i=1;i<pts.length-1;i++){
+    let sx=0,sy=0,n=0;
+    for(let j=Math.max(0,i-2);j<=Math.min(pts.length-1,i+2);j++){ sx+=pts[j].x; sy+=pts[j].y; n++; }
+    out.push({x:sx/n,y:sy/n});
+  }
+  out.push(pts[pts.length-1]);
+  return out;
+}
 function buildPath(raw){
   let p=resample(raw,RESAMPLE);
   if(p.length<2) return null;
-  p=chaikin(chaikin(p));
+  for(let i=0;i<MAVG;i++) p=movavg(p);
+  for(let i=0;i<CHAIKIN;i++) p=chaikin(p);
   const cum=[0];
   for(let i=1;i<p.length;i++) cum.push(cum[i-1]+Math.hypot(p[i].x-p[i-1].x,p[i].y-p[i-1].y));
   const total=cum[cum.length-1];
@@ -366,7 +406,7 @@ function pursue(pl,dt){
     if(sNow>=path.total-1.5){                   // line flown out
       pl.path=null; pl.pi=0;
     }else{
-      const t=pointAt(path,sNow+LOOKAHEAD);
+      const t=pointAt(path,sNow+LOOK_K*TURN_R);
       desired=Math.atan2(t.y-pl.y,t.x-pl.x);
     }
   }
@@ -383,7 +423,8 @@ function pursue(pl,dt){
   if(desired!==null){
     let err=wrap(desired-pl.hdg);
     if(Math.abs(err)<TURN_DEAD) err=0;          // below this it is already on heading
-    pl.hdg+=clamp(err,-MAX_TURN*dt,MAX_TURN*dt);
+    const rate=Math.min(MAX_TURN,pl.spd/TURN_R);
+    pl.hdg+=clamp(err,-rate*dt,rate*dt);
   }
 }
 
@@ -412,7 +453,7 @@ function difficulty(){
 function makePlane(k,x,y,hdg){
   return {id:++S.seq,type:TYPES[k],x,y,hdg,spd:S.speed,
     path:null,pi:0,routed:false,offPath:0,entered:false,
-    landing:null,fade:1,bob:rnd()*TAU,trail:[],warn:0,dead:false};
+    landing:null,fade:1,bob:rnd()*TAU,trail:[],warn:0,dead:false,bank:0};
 }
 function trySpawn(){
   const k=pick(KEYS), off=PLANE_PX;
@@ -434,7 +475,7 @@ function checkLanding(pl){
   if(!pl.routed) return;            // fairness guard — §5.4(1), §10.3
   for(const r of RUNWAYS){
     const {p,q}=rwLocal(r,pl.x,pl.y);
-    if(Math.abs(p)>r.hl||Math.abs(q)>r.hw*1.08) continue;
+    if(Math.abs(p)>r.hl||Math.abs(q)>halfWidth(r,p)*1.12) continue;
     if(Math.abs(wrap(pl.hdg-r.rad))>LAND_ANGLE) continue;   // crossing traffic flies over
     if(r.k===pl.type.dest) beginRollout(pl,r,p,q);
     else endGame('wrong',pl,r);
@@ -458,6 +499,7 @@ function rollout(pl,dt){
   L.p+=L.spd*dt;
   L.q=lerp(L.q,0,1-Math.exp(-7*dt));
   pl.hdg=lerpAng(pl.hdg,r.rad,1-Math.exp(-6*dt));
+  pl.bank*=Math.exp(-7*dt);                     // wings level for touchdown
   pl.x=r.cx+r.ux*L.p-r.uy*L.q;
   pl.y=r.cy+r.uy*L.p+r.ux*L.q;
   if(L.spd<=0.01||L.p>r.hl*0.92){
@@ -531,7 +573,13 @@ function step(dt){
     for(const pl of S.planes){
       if(pl.landing){ rollout(pl,dt); continue; }
       pl.spd=S.speed;
+      const h0=pl.hdg;
       pursue(pl,dt);
+      /* Roll into the turn. Seen from above a banking aircraft foreshortens
+         across the wings, so the sprite is squashed on its own x axis — that
+         reads as flying the curve rather than sliding round it. */
+      const rate=dt>0?wrap(pl.hdg-h0)/dt:0;
+      pl.bank=lerp(pl.bank,clamp(rate/2.2,-1,1),1-Math.exp(-9*dt));
       pl.x+=Math.cos(pl.hdg)*pl.spd*dt;
       pl.y+=Math.sin(pl.hdg)*pl.spd*dt;
       pl.bob+=dt*2.2;
@@ -576,25 +624,31 @@ function hexa(h,a){
   const n=parseInt(h.slice(1),16);
   return 'rgba('+(n>>16&255)+','+(n>>8&255)+','+(n&255)+','+a+')';
 }
-function rrect(x,y,w,h,r){
-  if(ctx.roundRect){ ctx.beginPath(); ctx.roundRect(x,y,w,h,r); return; }
+/* Rounded outline through arbitrary corners — the runways are trapezoids, so
+   an axis-aligned roundRect under a rotation cannot describe them. */
+function roundPoly(p,rad){
+  const n=p.length;
   ctx.beginPath();
-  ctx.moveTo(x+r,y); ctx.arcTo(x+w,y,x+w,y+h,r); ctx.arcTo(x+w,y+h,x,y+h,r);
-  ctx.arcTo(x,y+h,x,y,r); ctx.arcTo(x,y,x+w,y,r); ctx.closePath();
+  ctx.moveTo((p[0].x+p[1].x)/2,(p[0].y+p[1].y)/2);
+  for(let i=1;i<=n;i++){
+    const cur=p[i%n], nxt=p[(i+1)%n];
+    ctx.arcTo(cur.x,cur.y,(cur.x+nxt.x)/2,(cur.y+nxt.y)/2,rad);
+  }
+  ctx.closePath();
 }
 
 /* ═══════════════ approach guides (§7) ═══════════════ */
 function drawGuides(){
   const hot=S.draft?S.draft.pl.type.dest:(S.sel?S.sel.type.dest:null);
-  const march=S.reduced?0:(S.t*34)%30;
+  const march=S.reduced?0:(S.t*34)%32;
   for(const r of RUNWAYS){
     const on=hot===r.k;
 
-    /* runway outline: a soft glow, never a hard box (§7) */
+    /* runway outline: the real tarmac quad, drawn as a soft glow rather than a
+       hard box (§7) */
     ctx.save();
-    ctx.translate(r.cx,r.cy); ctx.rotate(r.rad);
     ctx.shadowColor=r.col; ctx.shadowBlur=on?30:14;
-    rrect(-r.hl,-r.hw,r.len,r.wid,13);
+    roundPoly(r.pts,13);
     if(on){ ctx.fillStyle=hexa(r.col,.13); ctx.fill(); }
     ctx.strokeStyle=hexa(r.col,on?.8:.33);
     ctx.lineWidth=on?3:1.8;
@@ -629,8 +683,8 @@ function drawGuides(){
 
     /* chevrons marching toward the threshold */
     ctx.lineCap='round'; ctx.lineJoin='round';
-    const cw=hw*0.72, ck=11;
-    for(let d=g-10-march;d>ck+8;d-=30){
+    const cw=hw*0.80, ck=12;
+    for(let d=g-10-march;d>ck+8;d-=32){
       const ax=r.tx+bx*d, ay=r.ty+by*d;
       const tx2=r.tx+bx*(d-ck), ty2=r.ty+by*(d-ck);   // tip points at the runway
       ctx.beginPath();
@@ -639,10 +693,10 @@ function drawGuides(){
       ctx.strokeStyle=hexa(r.col,on?1:.7);  ctx.lineWidth=lw; ctx.stroke();
     }
 
-    /* gate across the threshold */
+    /* gate along the real threshold edge */
     ctx.beginPath();
-    ctx.moveTo(r.tx+px*r.hw,r.ty+py*r.hw);
-    ctx.lineTo(r.tx-px*r.hw,r.ty-py*r.hw);
+    ctx.moveTo(r.pts[0].x,r.pts[0].y);
+    ctx.lineTo(r.pts[3].x,r.pts[3].y);
     ctx.strokeStyle='rgba(4,16,42,.55)'; ctx.lineWidth=(on?5:3.6)+4.5; ctx.stroke();
     ctx.strokeStyle=hexa(r.col,on?1:.85);  ctx.lineWidth=on?5:3.6; ctx.stroke();
     ctx.restore();
@@ -713,15 +767,18 @@ function drawPlane(pl){
     }
     ctx.restore();
   }
+  const bank=S.reduced?0:pl.bank;
+  const roll=1-Math.abs(bank)*0.26;             // wings foreshorten as it rolls
+
   ctx.save();                                     // altitude shadow
   ctx.globalAlpha=pl.fade*.85;
-  ctx.translate(pl.x+7,pl.y+bob+10); ctx.rotate(ang);
+  ctx.translate(pl.x+7-bank*4,pl.y+bob+10); ctx.rotate(ang); ctx.scale(roll,1);
   ctx.drawImage(SIL[pl.type.k],-w/2,-h/2,w,h);
   ctx.restore();
 
   ctx.save();
   ctx.globalAlpha=pl.fade;
-  ctx.translate(pl.x,pl.y+bob); ctx.rotate(ang);
+  ctx.translate(pl.x,pl.y+bob); ctx.rotate(ang); ctx.scale(roll,1);
   ctx.drawImage(img,-w/2,-h/2,w,h);
   ctx.restore();
 }
@@ -1006,7 +1063,7 @@ setMuted(true);
 
 /* ═══════════════ test hook (§12) ═══════════════ */
 window.__HL={
-  S,RUNWAYS,RW,TYPES,W,H,LOOKAHEAD,MAX_TURN,WARN_D,CRASH_D,LAND_ANGLE,TAP_PX,
+  S,RUNWAYS,RW,TYPES,W,H,WARN_D,CRASH_D,LAND_ANGLE,TAP_PX,
   start:startGame,
   step,
   seed(n){ let a=n>>>0; rnd=()=>{a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);
@@ -1025,9 +1082,11 @@ window.__HL={
   },
   freeze(v){ S.noSpawn=!!v; },
   hold(v){ S.hold=!!v; },        // stop the rAF loop stepping, so tests drive time
-  tune(o){ if(o.look!==undefined)LOOKAHEAD=o.look; if(o.turn!==undefined)MAX_TURN=o.turn;
+  tune(o){ if(o.k!==undefined)LOOK_K=o.k; if(o.turn!==undefined)MAX_TURN=o.turn;
+           if(o.R!==undefined)TURN_R=o.R;
            if(o.dead!==undefined)TURN_DEAD=o.dead;
-           return {look:LOOKAHEAD,turn:MAX_TURN,dead:TURN_DEAD}; },
+           if(o.ch!==undefined)CHAIKIN=o.ch; if(o.ma!==undefined)MAVG=o.ma;
+           return {R:TURN_R,k:LOOK_K,turn:MAX_TURN,dead:TURN_DEAD,ch:CHAIKIN,ma:MAVG}; },
   guides(){ return RUNWAYS.map(r=>({k:r.k,g:r.guide,
     tx:r.tx,ty:r.ty,ex:r.tx-r.ux*r.guide,ey:r.ty-r.uy*r.guide,
     hw:r.ghw,ux:r.ux,uy:r.uy})); }

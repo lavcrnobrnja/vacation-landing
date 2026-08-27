@@ -116,7 +116,86 @@ test('the plane settles onto the drawn line and stays on it (12.5)', async ({ pa
   await drag(page, handDrawnS(300, 210));
   const { off } = await flyAndSample(page, id);
   const worst = Math.max(...off.slice(45));
-  expect(worst, `worst off-path distance after settling was ${worst.toFixed(1)}px`).toBeLessThan(25);
+  const mean = off.slice(45).reduce((a, b) => a + b, 0) / (off.length - 45);
+  // §12.5 allows 25px; the tracker holds ~7px, so guard the real figure
+  expect(worst, `worst off-path distance after settling was ${worst.toFixed(1)}px`).toBeLessThan(12);
+  expect(mean, `mean off-path distance was ${mean.toFixed(1)}px`).toBeLessThan(3);
+});
+
+/* A fast mouse flick fires pointermove far apart, so the raw polyline has long
+   straight runs and hard corners — the case that used to leave a plane 24px
+   wide of its own line at end-game speed. */
+function flick(x0, y0) {
+  const way = [[x0, y0], [x0 + 120, y0 - 16], [x0 + 250, y0 + 24], [x0 + 300, y0 + 140],
+               [x0 + 215, y0 + 235], [x0 + 80, y0 + 232], [x0 + 34, y0 + 140],
+               [x0 + 130, y0 + 96], [x0 + 240, y0 + 120]];
+  const pts = [];
+  for (let i = 0; i < way.length - 1; i++) {
+    const [ax, ay] = way[i], [bx, by] = way[i + 1];
+    const n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / 38));
+    for (let k = 0; k < n; k++) pts.push({ x: ax + (bx - ax) * k / n, y: ay + (by - ay) * k / n });
+  }
+  pts.push({ x: way[way.length - 1][0], y: way[way.length - 1][1] });
+  return pts;
+}
+
+for (const minute of [0, 14]) {
+  test(`a fast flick is tracked at minute ${minute}: the plane stays on its line`, async ({ page }) => {
+    await load(page);
+    await startClean(page);
+    const speed = await page.evaluate(m => {
+      window.__HL.S.t = m * 60; window.__HL.step(0); return window.__HL.S.speed;
+    }, minute);
+    expect(speed).toBeCloseTo(minute === 0 ? 38 : 58, 0);
+
+    const id = await page.evaluate(() => window.__HL.add('a', 330, 240, 0, false));
+    await drag(page, flick(330, 240));
+    const { off, head } = await page.evaluate(([id, m]) => {
+      const H = window.__HL, dt = 1 / 60, off = [], head = [];
+      for (let i = 0; i < 3000; i++) {
+        const p = H.get(id);
+        if (!p) break;
+        H.S.t = m * 60;                     // hold the difficulty point steady
+        H.step(dt);
+        off.push(p.offPath); head.push(p.hdg);
+        if (!p.path) break;
+      }
+      return { off, head };
+    }, [id, minute]);
+
+    const settled = off.slice(40);
+    const worst = Math.max(...settled);
+    const mean = settled.reduce((a, b) => a + b, 0) / settled.length;
+    expect(worst, `worst off-path was ${worst.toFixed(1)}px at ${speed.toFixed(0)}px/s`).toBeLessThan(12);
+    expect(mean, `mean off-path was ${mean.toFixed(1)}px at ${speed.toFixed(0)}px/s`).toBeLessThan(3.5);
+    expect(smoothFlips(head), 'a flick still has to fly as clean arcs').toBeLessThanOrEqual(6);
+  });
+}
+
+test('tracking does not degrade as the game speeds up', async ({ page }) => {
+  await load(page);
+  const worst = {};
+  for (const minute of [0, 14]) {
+    await startClean(page);
+    await page.evaluate(m => { window.__HL.S.t = m * 60; window.__HL.step(0); }, minute);
+    const id = await page.evaluate(() => window.__HL.add('a', 330, 240, 0, false));
+    await drag(page, flick(330, 240));
+    worst[minute] = await page.evaluate(([id, m]) => {
+      const H = window.__HL, dt = 1 / 60; let w = 0;
+      for (let i = 0; i < 3000; i++) {
+        const p = H.get(id);
+        if (!p) break;
+        H.S.t = m * 60; H.step(dt);
+        if (i > 40) w = Math.max(w, p.offPath);
+        if (!p.path) break;
+      }
+      return w;
+    }, [id, minute]);
+  }
+  // turning is defined by a fixed radius, so 58px/s must track like 38px/s
+  expect(Math.abs(worst[14] - worst[0]),
+    `off-path was ${worst[0].toFixed(1)}px at 38px/s and ${worst[14].toFixed(1)}px at 58px/s`)
+    .toBeLessThan(2);
 });
 
 test('a plane with no route left flies straight and does not spin (12.6)', async ({ page }) => {
