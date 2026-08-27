@@ -53,6 +53,16 @@ const head=[
 const standalone='<!doctype html>\n<html lang="en">\n<head>\n'+head+'\n'+src+'\n</html>\n';
 fs.writeFileSync(path.join(root,'dist','holiday-landing.html'),standalone);
 
+/* docs/ is what GitHub Pages serves. A link preview can only read Open Graph
+   tags from a URL it can fetch, so the game has to live on a real host before
+   any of those tags do anything. */
+const docs=path.join(root,'docs');
+fs.mkdirSync(docs,{recursive:true});
+fs.writeFileSync(path.join(docs,'index.html'),standalone);
+const og=path.join(root,'dist','holiday-landing-og.jpg');
+if(fs.existsSync(og)) fs.copyFileSync(og,path.join(docs,'holiday-landing-og.jpg'));
+else console.warn('  ! no dist/holiday-landing-og.jpg - run node tools/make-og.js');
+
 for(const f of ['artifact.html','holiday-landing.html']){
   const kb=fs.statSync(path.join(root,'dist',f)).size/1024;
   console.log(f.padEnd(24), kb.toFixed(1)+' KB', kb<=260?'✓ under 260 KB':'✗ OVER BUDGET');

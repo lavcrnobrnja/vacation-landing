@@ -16,6 +16,7 @@ tools/build.js           inlines the art as data URIs -> dist/
 dist/holiday-landing.html   standalone
 dist/artifact.html          same page without the document skeleton
 dist/holiday-landing-og.jpg link-preview image (1200x630)
+docs/                       what GitHub Pages serves (index.html + the image)
 tools/make-og.js            renders that image
 tests/                   Playwright suite (41 tests)
 RUNWAYS.md               the runway corners, and how they were measured
@@ -181,6 +182,11 @@ by side and the link unfurls with the game's title, description and artwork.
 `og:image` is deliberately relative, so the file contains no absolute URLs and
 stays portable across hosts; every common unfurler resolves it against the page
 URL. Make it absolute if a particular one does not.
+
+To serve it from this repo: GitHub **Settings → Pages → Source: Deploy from a
+branch**, pick the branch and the **/docs** folder. The game then lives at
+`https://<user>.github.io/vacation-landing/` and that URL unfurls properly. Any
+other host works the same way — the two files are self-contained and portable.
 
 **This cannot be made to work for a claude.ai artifact link.** That route serves
 static Open Graph metadata — fetched as a link scraper, a made-up artifact id
