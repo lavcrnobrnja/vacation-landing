@@ -146,7 +146,7 @@ for (const minute of [0, 14]) {
     const speed = await page.evaluate(m => {
       window.__HL.S.t = m * 60; window.__HL.step(0); return window.__HL.S.speed;
     }, minute);
-    expect(speed).toBeCloseTo(minute === 0 ? 38 : 58, 0);
+    expect(speed).toBeCloseTo(minute === 0 ? 38 : 64, 0);   // 64 is the new top speed
 
     const id = await page.evaluate(() => window.__HL.add('a', 330, 240, 0, false));
     await drag(page, flick(330, 240));
@@ -224,4 +224,80 @@ test('a short drag is a tap: it does not replace the existing route (5.2)', asyn
   await drag(page, [p, { x: p.x + 6, y: p.y + 5 }, { x: p.x + 11, y: p.y + 8 }]);
   const after = await page.evaluate(i => window.__HL.get(i).path.total, id);
   expect(after).toBe(before);
+});
+
+/* The plane has to fly the line while it is being drawn, not sit on its old
+   heading until the mouse comes up. Time is stepped BETWEEN pointer moves here,
+   which is what makes this different from every other drag test in this file. */
+test('the plane follows the line while it is still being drawn', async ({ page }) => {
+  await load(page);
+  await startClean(page);
+  const id = await page.evaluate(() => window.__HL.add('a', 260, 240, 0, false));
+
+  const b = await page.evaluate(() => {
+    const r = document.getElementById('cv').getBoundingClientRect();
+    return { left: r.left, top: r.top, w: r.width, h: r.height, W: window.__HL.W, H: window.__HL.H };
+  });
+  const S = p => ({ x: b.left + p.x * b.w / b.W, y: b.top + p.y * b.h / b.H });
+
+  // a slow, deliberate arc — the way someone draws when they are being careful
+  const way = [[260, 240], [360, 250], [455, 300], [520, 390], [530, 500], [470, 590]];
+  const pts = [];
+  for (let i = 0; i < way.length - 1; i++) {
+    const [ax, ay] = way[i], [bx, by] = way[i + 1];
+    const n = Math.max(1, Math.round(Math.hypot(bx - ax, by - ay) / 10));
+    for (let k = 0; k < n; k++) pts.push({ x: ax + (bx - ax) * k / n, y: ay + (by - ay) * k / n });
+  }
+  pts.push({ x: way[way.length - 1][0], y: way[way.length - 1][1] });
+
+  const start = S(pts[0]);
+  await page.mouse.move(start.x, start.y);
+  await page.mouse.down();
+
+  const samples = [];
+  for (const p of pts.slice(1)) {
+    const s = S(p);
+    await page.mouse.move(s.x, s.y);
+    // three frames of flight per pointer move, as in a real drag
+    samples.push(await page.evaluate(id => {
+      const H = window.__HL, pl = H.get(id);
+      for (let i = 0; i < 3; i++) H.step(1 / 60);
+      return { hasPath: !!pl.path, off: pl.offPath, x: pl.x, y: pl.y, routed: pl.routed };
+    }, id));
+  }
+
+  const mid = samples.slice(4);          // let the first few moves establish the line
+  expect(mid.every(s => s.hasPath), 'the plane should be on a route throughout the drag').toBe(true);
+  expect(mid.every(s => s.routed), 'a real drag marks the plane routed immediately').toBe(true);
+
+  const worst = Math.max(...mid.map(s => s.off));
+  expect(worst, `worst off-line distance DURING the drag was ${worst.toFixed(1)}px`).toBeLessThan(14);
+
+  // and it must actually have been flying, not frozen waiting for pointerup
+  const moved = Math.hypot(samples[samples.length - 1].x - 260, samples[samples.length - 1].y - 240);
+  expect(moved, `plane only moved ${moved.toFixed(0)}px during the drag`).toBeGreaterThan(40);
+
+  await page.mouse.up();
+  const after = await page.evaluate(id => !!window.__HL.get(id).path, id);
+  expect(after, 'releasing keeps the route').toBe(true);
+});
+
+test('a tap on a plane mid-flight restores the route it already had', async ({ page }) => {
+  await load(page);
+  await startClean(page);
+  const id = await page.evaluate(() => window.__HL.add('a', 300, 210, 0, false));
+  await drag(page, handDrawnS(300, 210));
+  const before = await page.evaluate(i => {
+    const p = window.__HL.get(i);
+    for (let k = 0; k < 60; k++) window.__HL.step(1 / 60);
+    return { total: p.path.total, routed: p.routed };
+  }, id);
+  const at = await page.evaluate(i => { const p = window.__HL.get(i); return { x: p.x, y: p.y }; }, id);
+  await drag(page, [at, { x: at.x + 5, y: at.y + 4 }, { x: at.x + 9, y: at.y + 7 }]);
+  const after = await page.evaluate(i => {
+    const p = window.__HL.get(i);
+    return { total: p.path ? p.path.total : null, routed: p.routed };
+  }, id);
+  expect(after.total).toBe(before.total);
+  expect(after.routed).toBe(before.routed);
 });

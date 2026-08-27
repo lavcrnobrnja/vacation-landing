@@ -43,6 +43,8 @@ button{font:inherit;color:inherit}
 .hdr-r{display:flex;align-items:center;gap:8px}
 .score{display:flex;align-items:baseline;gap:6px;font-weight:800;letter-spacing:-.02em;
   font-size:17px;padding:5px 12px;border-radius:999px;background:var(--lav);color:var(--ink)}
+.score.clock{background:var(--page);border:1px solid var(--hair)}
+.score.clock span{font-variant-numeric:tabular-nums}
 .score i{font-style:normal;font-size:10px;font-weight:700;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink-soft)}
 .iconbtn{width:34px;height:34px;border-radius:10px;border:1px solid var(--hair);background:#fff;
@@ -136,6 +138,7 @@ kbd{font-family:inherit;font-size:10.5px;font-weight:750;background:#fff;border:
   .brand{font-size:14px}.mark{width:18px;height:18px;font-size:11px}
   .hdr .tag{display:none}
   .score{font-size:14px;padding:3px 9px}.score i{display:none}
+  .score.clock{display:none}
   .iconbtn{width:27px;height:27px;border-radius:8px}.iconbtn svg{width:14px;height:14px}
   .ftr{display:none}
   .card{padding:15px 18px;border-radius:15px}
@@ -167,6 +170,7 @@ kbd{font-family:inherit;font-size:10.5px;font-weight:750;background:#fff;border:
     <span class="tag">Holiday Landing</span>
     <span class="sp"></span>
     <div class="hdr-r">
+      <div class="score clock"><i>Shift</i><span id="clock">0:00</span></div>
       <div class="score"><i>Landed</i><span id="score">0</span></div>
       <button class="iconbtn" id="btnSound" aria-pressed="false" aria-label="Sound off" title="Sound (M)">
         <svg id="icSound" viewBox="0 0 24 24"><path d="M4 9v6h4l5 4V5L8 9H4z"/><path id="mute1" d="M17 9l4 6M21 9l-4 6"/><path id="mute2" style="display:none" d="M16.5 8.5a5 5 0 0 1 0 7"/></svg>
@@ -279,6 +283,10 @@ let   MAX_TURN   = 3.4;   // rad/s ceiling, so a braking plane cannot spin
 let   TURN_DEAD  = 0.004; // rad; below this the plane is already on heading
 const LAND_ANGLE = 26*Math.PI/180;
 const WARN_D     = 78, CRASH_D = 31;
+/* §5.5's fixed 78px gives a head-on pair 0.6s of warning at 38px/s but only
+   0.37s at the top speed, which is not enough to act on. Grow it with speed so
+   the warning always arrives about as long before contact. */
+const warnDist   = ()=>Math.max(WARN_D,CRASH_D+S.speed*1.15);
 const EDGE_M     = 54;    // loiter turn-back margin
 const ENTER_M    = 26;
 
@@ -403,11 +411,16 @@ function pursue(pl,dt){
     const segLen=path.cum[bi+1]-path.cum[bi];
     const sNow=path.cum[bi]+bt*segLen;
     pl.offPath=Math.sqrt(bd);
-    if(sNow>=path.total-1.5){                   // line flown out
+    /* While the player is still drawing, the line ends under their cursor, so
+       running off the end means catching up with the mouse — keep the path and
+       home on its last point instead of dropping it. */
+    const live=S.draft&&S.draft.pl===pl;
+    if(sNow>=path.total-1.5&&!live){            // line flown out
       pl.path=null; pl.pi=0;
     }else{
       const t=pointAt(path,sNow+LOOK_K*TURN_R);
-      desired=Math.atan2(t.y-pl.y,t.x-pl.x);
+      const dx=t.x-pl.x, dy=t.y-pl.y;
+      if(dx*dx+dy*dy>4) desired=Math.atan2(dy,dx);   // don't spin on top of it
     }
   }
   if(desired===null && pl.entered){
@@ -433,7 +446,7 @@ const S={
   phase:'start',            // start | play | paused | over
   t:0, score:0, best:0,
   tally:{A:0,B:0,C:0},
-  planes:[], fx:[], rings:[], floats:[], pairs:[],
+  planes:[], fx:[], rings:[], floats:[], pairs:[], notes:[], lastMax:0, shownSec:-1,
   spawnIn:1.2, seq:0,
   speed:38, maxAir:3, gap:7,
   shake:0, flash:0, overAt:0, over:null,
@@ -442,11 +455,20 @@ const S={
 
 const airborne = ()=>S.planes.filter(p=>!p.landing).length;
 
+/* §6's curve tops out between 10 and 14 minutes and moves so little early on
+   that the first few minutes feel identical — two minutes in it had added one
+   aircraft, shaved 0.6s off the gap and 3px/s off the speed. This reaches full
+   pressure at ~7 minutes instead, and steps the aircraft cap often enough
+   (~54s) that the climb is something you notice happening. */
 function difficulty(){
-  const t=S.t/60;                                   // minutes elapsed (§6)
-  S.maxAir=Math.min(8,3+Math.floor(t/2));           // 3 → 8, one per ~2 min
-  S.gap=7.0-3.8*Math.min(1,t/12);                   // 7.0 → 3.2 s
-  S.speed=38+20*Math.min(1,t/14);                   // 38 → 58 px/s
+  const t=S.t/60;                                   // minutes elapsed
+  S.maxAir=Math.min(10,3+Math.floor(t/0.9));        // 3 → 10 aircraft
+  S.gap=6.6-4.0*Math.min(1,t/6);                    // 6.6 → 2.6 s between arrivals
+  S.speed=38+26*Math.min(1,t/7);                    // 38 → 64 px/s
+  if(S.maxAir>S.lastMax){
+    if(S.lastMax) S.notes.push({txt:S.maxAir+' aircraft inbound',t:0});
+    S.lastMax=S.maxAir;
+  }
 }
 
 /* ═══════════════ arrivals (§5.1) ═══════════════ */
@@ -511,13 +533,14 @@ function rollout(pl,dt){
 
 /* ═══════════════ separation (§5.5) ═══════════════ */
 function separation(dt){
+  const wd=warnDist();
   const live=S.planes.filter(p=>!p.landing&&p.entered&&!p.dead);
   for(const p of live) p.warn=Math.max(0,p.warn-dt*3);
   S.pairs=[];
   for(let i=0;i<live.length;i++)for(let j=i+1;j<live.length;j++){
     const a=live[i],b=live[j], d=dist(a,b);
     if(d<CRASH_D){ endGame('crash',a,b); return; }
-    if(d<WARN_D){
+    if(d<wd){
       a.warn=b.warn=1; S.pairs.push([a,b]);
       if(S.warnBeep<=0){ sfx('warn'); S.warnBeep=0.45; }
     }
@@ -554,6 +577,8 @@ function stepFx(dt){
   for(const r of S.rings){ r.r+=(r.max-r.r)*Math.min(1,dt*5.5); r.a-=dt*1.6; }
   S.rings=S.rings.filter(r=>r.a>0);
   for(const f of S.floats){ f.y+=f.vy*dt; f.vy*=0.94; f.a-=dt*0.85; }
+  for(const n of S.notes) n.t+=dt;
+  S.notes=S.notes.filter(n=>n.t<2.6);
   S.floats=S.floats.filter(f=>f.a>0);
   S.shake*=Math.exp(-dt*6);
   S.flash=Math.max(0,S.flash-dt*2.2);
@@ -564,6 +589,11 @@ function step(dt){
   if(S.phase==='play'){
     S.t+=dt;
     difficulty();
+    const sec=Math.floor(S.t);
+    if(sec!==S.shownSec){
+      S.shownSec=sec;
+      clockEl.textContent=Math.floor(sec/60)+':'+String(sec%60).padStart(2,'0');
+    }
     S.warnBeep-=dt;
     S.spawnIn-=dt;
     if(S.spawnIn<=0 && !S.noSpawn){
@@ -720,15 +750,14 @@ function drawRoutes(){
   const off=S.reduced?0:-(S.t*40)%22;
   for(const pl of S.planes){
     if(!pl.path||pl.landing) continue;
-    strokePts(pl.path.pts.slice(pl.pi),hexa(pl.type.col,.85),3.4,[12,10],off);
+    const live=S.draft&&S.draft.pl===pl;
+    strokePts(pl.path.pts.slice(pl.pi),hexa(pl.type.col,live?1:.85),live?4.2:3.4,[12,10],off);
     const e=pl.path.pts[pl.path.pts.length-1];
     ctx.save();
     ctx.fillStyle=hexa(pl.type.col,.9);
     ctx.beginPath(); ctx.arc(e.x,e.y,4.5,0,TAU); ctx.fill();
     ctx.restore();
   }
-  if(S.draft&&S.draft.pts.length>1)
-    strokePts(S.draft.pts,hexa(S.draft.pl.type.col,.95),4,null,0);
 }
 
 /* ═══════════════ planes ═══════════════ */
@@ -831,6 +860,22 @@ function render(){
     ctx.fillText(f.txt,f.x,f.y);
     ctx.restore();
   }
+  const note=S.notes[S.notes.length-1];
+  if(note){
+    const a=note.t<0.22?note.t/0.22:(note.t>2.1?Math.max(0,(2.6-note.t)/0.5):1);
+    const y=54-(S.reduced?0:(1-Math.min(1,note.t/0.22))*9);
+    ctx.save();
+    ctx.globalAlpha=a;
+    ctx.font='800 21px '+FONT;
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    const bw=ctx.measureText(note.txt).width+42;
+    roundPoly([{x:W/2-bw/2,y:y-19},{x:W/2+bw/2,y:y-19},
+               {x:W/2+bw/2,y:y+19},{x:W/2-bw/2,y:y+19}],15);
+    ctx.fillStyle='rgba(6,16,40,.8)'; ctx.fill();
+    ctx.strokeStyle='rgba(237,110,68,.9)'; ctx.lineWidth=1.7; ctx.stroke();
+    ctx.fillStyle='#FFE4D6'; ctx.fillText(note.txt,W/2,y);
+    ctx.restore();
+  }
   if(S.flash>0.001){
     ctx.fillStyle='rgba(255,48,48,'+S.flash*.42+')';
     ctx.fillRect(-40,-40,W+80,H+80);
@@ -865,6 +910,7 @@ function sfx(n){ if(!muted&&AC&&SFX[n]) try{SFX[n]();}catch(e){} }
 
 /* ═══════════════ DOM ═══════════════ */
 const scoreEl=document.getElementById('score');
+const clockEl=document.getElementById('clock');
 const veil=document.getElementById('veil');
 const card=document.getElementById('card');
 const btnSound=document.getElementById('btnSound');
@@ -942,10 +988,12 @@ function showPause(){
 function startGame(){
   S.phase='play'; S.t=0; S.score=0; S.tally={A:0,B:0,C:0};
   S.planes.length=0; S.fx.length=0; S.rings.length=0; S.floats.length=0;
-  S.pairs=[]; S.spawnIn=1.1; S.seq=0; S.shake=0; S.flash=0;
+  S.pairs=[]; S.notes.length=0; S.lastMax=0; S.shownSec=-1;
+  S.spawnIn=1.1; S.seq=0; S.shake=0; S.flash=0;
   S.draft=null; S.sel=null; S.over=null; S.overAt=0;
   difficulty();
   scoreEl.textContent='0';
+  clockEl.textContent='0:00';
   veil.hidden=true;
   trySpawn();
 }
@@ -983,6 +1031,27 @@ function grabRadius(e){
   const scale=b.width>0?W/b.width:1;
   return Math.min(112,Math.max(GRAB_COARSE,40*scale));
 }
+/* Re-condition the drag so far and hand it straight to the plane, so it flies
+   the line while it is being drawn rather than waiting for the mouse to come
+   up. Rebuilding is cheap, and the prefix of a re-conditioned path is stable,
+   so the plane's progress along it carries over. */
+function applyDraft(d){
+  const path=buildPath(d.pts);
+  if(!path) return;
+  const pl=d.pl;
+  let s=0;
+  if(d.owns&&pl.path&&pl.path.cum.length>1){
+    s=pl.path.cum[clamp(pl.pi,0,pl.path.cum.length-2)];
+  }
+  pl.path=path;
+  let i=0;
+  while(i<path.cum.length-2&&path.cum[i+1]<s) i++;
+  pl.pi=Math.max(0,i-1);
+  d.owns=true;
+}
+function restore(d){
+  d.pl.path=d.prevPath; d.pl.pi=d.prevPi; d.pl.routed=d.prevRouted;
+}
 cv.addEventListener('pointerdown',e=>{
   if(S.phase!=='play') return;
   const p=toLocal(e), rad=grabRadius(e);
@@ -996,7 +1065,9 @@ cv.addEventListener('pointerdown',e=>{
   e.preventDefault();
   cv.setPointerCapture(e.pointerId);
   S.sel=best;
-  S.draft={pl:best,pts:[{x:best.x,y:best.y},p],len:0,pid:e.pointerId};
+  S.draft={pl:best,pts:[{x:best.x,y:best.y},p],len:0,pid:e.pointerId,real:false,owns:false,
+           prevPath:best.path,prevPi:best.pi,prevRouted:best.routed};
+  applyDraft(S.draft);
   sfx('grab');
 });
 cv.addEventListener('pointermove',e=>{
@@ -1006,21 +1077,25 @@ cv.addEventListener('pointermove',e=>{
   const step=Math.hypot(p.x-last.x,p.y-last.y);
   if(step<1.5) return;
   d.len+=step; d.pts.push(p);
+  if(!d.real&&d.len>=TAP_PX){ d.real=true; d.pl.routed=true; }
+  applyDraft(d);
 });
 function commit(e){
   const d=S.draft;
   if(!d||d.pid!==e.pointerId) return;
-  S.draft=null;
+  S.draft=null; S.sel=null;
   try{cv.releasePointerCapture(e.pointerId);}catch(_){}
-  if(d.len<TAP_PX){ S.sel=null; return; }       // tap: keep the old route
-  const path=buildPath(d.pts);
-  if(!path){ S.sel=null; return; }
-  d.pl.path=path; d.pl.pi=0; d.pl.routed=true;
-  S.sel=null;
+  if(!d.real){ restore(d); return; }            // a tap: put back what it had
+  applyDraft(d);
   sfx('route');
 }
 cv.addEventListener('pointerup',commit);
-cv.addEventListener('pointercancel',e=>{ if(S.draft&&S.draft.pid===e.pointerId){S.draft=null;S.sel=null;} });
+cv.addEventListener('pointercancel',e=>{
+  const d=S.draft;
+  if(!d||d.pid!==e.pointerId) return;
+  S.draft=null; S.sel=null;
+  restore(d);
+});
 
 btnSound.onclick=()=>setMuted(!muted);
 btnPause.onclick=()=>setPause(S.phase==='play');

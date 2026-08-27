@@ -67,7 +67,7 @@ const shot=(pg,n)=>pg.screenshot({path:'shots/'+n+'.png'});
   await pg.waitForTimeout(150); await shot(pg,'6-warning');
   await pg.close();
 
-  // 9. a plane part-way along a hand-drawn line, to show it tracking
+  // 9. caught MID-DRAG: mouse still down, plane already flying the line
   pg=await b.newPage({viewport:{width:1280,height:900}});
   await boot(pg);
   await pg.evaluate(()=>{const H=window.__HL;H.seed(4);H.start();H.freeze(true);H.hold(true);H.clear();});
@@ -76,23 +76,44 @@ const shot=(pg,n)=>pg.screenshot({path:'shots/'+n+'.png'});
       return{left:r.left,top:r.top,w:r.width,h:r.height,W:window.__HL.W,H:window.__HL.H};});
     const Q=p=>({x:bb.left+p.x*bb.w/bb.W,y:bb.top+p.y*bb.h/bb.H});
     const id=await pg.evaluate(()=>window.__HL.add('c',250,180,20,false));
-    const way=[[250,180],[380,170],[500,215],[580,330],[560,470],[640,600],[820,650],[980,700]];
+    const way=[[250,180],[380,170],[500,215],[580,330],[560,470],[640,600],[820,650],[1000,700]];
     const pts=[];
     for(let i=0;i<way.length-1;i++){
       const [ax,ay]=way[i],[bx,by]=way[i+1];
-      const n=Math.max(1,Math.round(Math.hypot(bx-ax,by-ay)/26));
+      const n=Math.max(1,Math.round(Math.hypot(bx-ax,by-ay)/10));
       for(let k=0;k<n;k++) pts.push({x:ax+(bx-ax)*k/n,y:ay+(by-ay)*k/n});
     }
-    pts.push({x:way.at(-1)[0],y:way.at(-1)[1]});
     const a2=Q(pts[0]); await pg.mouse.move(a2.x,a2.y); await pg.mouse.down();
-    for(const q of pts.slice(1)){const s2=Q(q);await pg.mouse.move(s2.x,s2.y);}
-    await pg.mouse.up();
-    await pg.evaluate(()=>{for(let i=0;i<430;i++) window.__HL.step(1/60);});
+    // drag most of the way, flying the plane as we go - mouse stays DOWN
+    for(const q of pts.slice(1,Math.floor(pts.length*0.72))){
+      await pg.mouse.move(Q(q).x,Q(q).y);
+      await pg.evaluate(()=>{for(let i=0;i<5;i++) window.__HL.step(1/60);});
+    }
     await pg.waitForTimeout(150);
-    await shot(pg,'9-tracking');
-    const off=await pg.evaluate(i=>window.__HL.get(i)?.offPath,id);
-    console.log('plane off its line at capture:', off===undefined?'n/a':off.toFixed(2)+'px');
+    await shot(pg,'9-mid-drag');
+    const st=await pg.evaluate(i=>{const p=window.__HL.get(i);
+      return {off:p.offPath, moved:Math.hypot(p.x-250,p.y-180)};},id);
+    console.log('mid-drag: plane '+st.off.toFixed(2)+'px off its line, '+st.moved.toFixed(0)+'px flown');
+    await pg.mouse.up();
   }
+  await pg.close();
+
+  // 10. the aircraft cap stepping up
+  pg=await b.newPage({viewport:{width:1280,height:900}});
+  await boot(pg);
+  // with a scripted controller keeping the sky clear, so the run survives to 0:56
+  await pg.evaluate(()=>{const H=window.__HL,S=H.S;H.seed(6);H.start();H.hold(true);
+    let next=2.5;
+    for(let i=0;i<60*56;i++){
+      H.step(1/60);
+      const air=S.planes.filter(p=>!p.landing);
+      for(let a=0;a<air.length;a++)for(let b=a+1;b<air.length;b++)
+        if(Math.hypot(air[a].x-air[b].x,air[a].y-air[b].y)<H.WARN_D+6){
+          const k=S.planes.indexOf(air[b]); if(k>=0) S.planes.splice(k,1);}
+      if(S.t>=next){next+=2.5;const l=S.planes.filter(p=>!p.landing);
+        if(l.length) S.planes.splice(S.planes.indexOf(l[0]),1);}
+    }});
+  await pg.waitForTimeout(150); await shot(pg,'10-traffic-up');
   await pg.close();
 
   // 7. landscape phone (10.5)

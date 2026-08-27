@@ -15,7 +15,7 @@ tools/prep_assets.py     keys, trims and compresses the art
 tools/build.js           inlines the art as data URIs -> dist/
 dist/holiday-landing.html   standalone
 dist/artifact.html          same page without the document skeleton
-tests/                   Playwright suite (27 tests)
+tests/                   Playwright suite (33 tests)
 RUNWAYS.md               the runway corners, and how they were measured
 ```
 
@@ -23,7 +23,7 @@ RUNWAYS.md               the runway corners, and how they were measured
 npm install
 python3 tools/prep_assets.py     # art  -> assets/
 node tools/build.js              # art + code -> dist/
-npx playwright test              # 27 tests
+npx playwright test              # 33 tests
 ```
 
 ## Size
@@ -64,11 +64,48 @@ erase a wobble, gentle enough to leave a deliberate corner intact.
 20px margin. C's threshold is near the bottom edge and its rails leave the
 canvas long before its centre does.
 
-**5. Planes turn back at the edges instead of flying away.** The spec does not
+**5. The plane flies the line as it is being drawn.** §5.2 commits the route on
+`pointerup`, which means the plane holds its old heading through the whole drag
+and then snaps onto the new line when the mouse comes up. It now re-conditions
+the drag on every pointer move and hands it straight to the plane, so the plane
+is flying your line while you are still drawing it — and if it catches up with
+the end of the line, it homes on the cursor rather than dropping the route.
+
+**6. A steeper difficulty curve.** §6's tops out between 10 and 14 minutes and
+barely moves early: two minutes in it had added one aircraft, shaved 0.6s off the
+arrival gap and 3px/s off the speed. See below.
+
+**7. The separation warning grows with speed.** §5.5's fixed 78px gives a
+head-on pair 0.6s of warning at the opening 38px/s but only 0.37s at the new top
+speed. The radius is now `max(78, 31 + speed × 1.15)`, so the warning always
+arrives about as long before contact — 78px early on, 105px at full speed.
+
+**8. Planes turn back at the edges instead of flying away.** The spec does not
 say what happens to a plane that reaches the boundary. Letting them leave would
 make the game trivial — you could ignore every plane. They now reflect off the
 edge and loiter, which is what makes the concurrency cap the difficulty lever §6
 intends it to be.
+
+## Difficulty
+
+| Elapsed | aircraft cap | arrival gap | speed |
+|---|---|---|---|
+| 0:00 | 3 | 6.6s | 38 |
+| 1:00 | 4 | 5.9s | 42 |
+| 2:00 | 5 | 5.3s | 45 |
+| 3:00 | 6 | 4.6s | 49 |
+| 4:00 | 7 | 3.9s | 53 |
+| 5:00 | 8 | 3.3s | 57 |
+| 6:00 | 9 | 2.6s | 60 |
+| 7:00+ | 10 | 2.6s | 64 |
+
+Full pressure at ~7 minutes rather than 10–14, and the cap steps every ~54s so
+the climb is something you notice happening. Two things make it legible rather
+than merely present: a shift clock in the header, and a banner on the playfield
+each time the cap rises.
+
+For comparison, at four minutes §6's curve gave 5 aircraft / 5.7s / 44px/s;
+this one gives 7 / 3.9s / 53px/s.
 
 ## Steering
 
@@ -90,15 +127,21 @@ Planes also roll into their turns: seen from above a banking aircraft
 foreshortens across the wings, so the sprite is squashed on its own x axis in
 proportion to a smoothed turn rate.
 
+Routes are built live during the drag. Rebuilding is cheap, and the prefix of a
+re-conditioned path is stable, so the plane's progress along the line carries
+across each rebuild. A drag under 25px is still a tap: it restores whatever
+route the plane already had.
+
 The §12.4 regression test counts sign changes of the heading rate two ways — raw
 and low-passed over ±8 frames — and the suite proves the metric has teeth by
 feeding it a synthetic waypoint-chaser trace, which scores 129 against a clean
-arc's 1. Two further tests hold the flick figures above and assert that 58px/s
-tracks within 2px of 38px/s.
+arc's 1. Two further tests hold the flick figures above and assert that top speed tracks
+within 2px of the opening speed, and one steps time *between* pointer moves to
+prove the plane is flying the line mid-drag rather than waiting for the mouse.
 
 ## Tests
 
-27 Playwright tests covering every item in §12, plus the end-to-end player loop
+33 Playwright tests covering every item in §12, plus the end-to-end player loop
 (sweep a curve across the map, finish it down the runway, land). Chromium is
 launched from `/opt/pw-browsers/chromium`; adjust `playwright.config.js`
 elsewhere.
