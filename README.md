@@ -1,197 +1,258 @@
+<p align="center">
+  <img src="media/screenshot.jpg" alt="Holiday Landing: three island runways seen from above, with orange, green and purple planes flying dashed routes toward them" width="100%">
+</p>
+
 # Holiday Landing
 
-An air-traffic-control game for Vacation Tracker, in the style of Firemint's
-*Flight Control*. Planes arrive from the edges, you drag each one a route, and
-every plane has to land on the runway painted its colour.
+An air-traffic-control game in the style of Firemint's *Flight Control*. Planes
+arrive from the edges of the map, you drag each one a route with the mouse or a
+finger, and every plane has to land on the runway painted its colour. Send one to
+the wrong island, or let two touch in the air, and the shift is over.
 
-**The deliverable is `dist/holiday-landing.html`** — one self-contained file,
-~235 KB, no build step, no network, no storage. Open it from `file://` and it
-plays.
+It was built as a giveaway for [Vacation Tracker](https://vacationtracker.io) —
+three islands, three kinds of time off — and it is yours to take apart and
+re-skin. See [Make it your own](#make-it-your-own).
 
+**The whole game is one HTML file.** `dist/holiday-landing.html` is ~242 KB with
+every image embedded as a data URI. No build step, no bundler, no CDN, no
+network requests, no cookies, no storage. Double-click it and it plays. Email it,
+drop it on any static host, put it behind a corporate firewall — it does not
+care.
+
+---
+
+## How to play
+
+1. **Drag from a plane** to draw its route. It starts flying the line
+   immediately, while you are still drawing.
+2. **Finish the line straight down the runway.** A plane only lands on a clean
+   approach — within 26° of the runway heading. Cross at the wrong angle and it
+   flies over, and you go around.
+3. **Colours must match.** Green lands at A, orange at B, purple at C. The wrong
+   island ends the run, and so does letting two planes touch.
+
+A red halo and a dashed link warn you before any collision. The shift gets
+harder once a minute for the first four minutes, then holds at full pressure.
+
+`Space` starts and restarts · `P` pauses · `M` toggles sound.
+
+## Run it
+
+Nothing to install if you just want to play:
+
+```bash
+git clone https://github.com/lavcrnobrnja/vacation-landing.git
+open vacation-landing/dist/holiday-landing.html
 ```
-src/game.html            the game (art referenced by placeholder)
-assets-src/              the five supplied source images
-tools/prep_assets.py     keys, trims and compresses the art
-tools/build.js           inlines the art as data URIs -> dist/
-dist/holiday-landing.html   standalone
-dist/artifact.html          same page without the document skeleton
-dist/holiday-landing-og.jpg link-preview image (1200x630)
-docs/                       what GitHub Pages serves (index.html + the image)
-tools/make-og.js            renders that image
-tests/                   Playwright suite (41 tests)
-RUNWAYS.md               the runway corners, and how they were measured
-```
+
+To rebuild from source:
 
 ```bash
 npm install
-python3 tools/prep_assets.py     # art  -> assets/
-node tools/build.js              # art + code -> dist/
-node tools/make-og.js            # link-preview image
-npx playwright test              # 41 tests
+python3 tools/prep_assets.py   # artwork      -> assets/
+node tools/make-og.js          # link preview -> dist/holiday-landing-og.jpg
+node tools/build.js            # art + code   -> dist/ and docs/
+npx playwright test            # 41 tests
 ```
 
-## Size
+The asset step needs Python with `pillow`, `numpy` and `scipy`.
 
-| | raw | in the file |
-|---|---|---|
-| map.webp (1024px, q72) | 126.8 KB | 169 KB |
-| 3 plane sprites (WebP, 144px) | 15.5 KB | 21 KB |
-| code + CSS | — | 40 KB |
-| **total** | | **235 KB** (budget 260 KB) |
+## What's in here
 
-WebP rather than the PNG the spec assumed: the sprites drop from ~21 KB each to
-~5 KB with no visible loss, which bought the headroom that made a larger, less
-compressed map affordable.
+| Path | |
+|---|---|
+| `dist/holiday-landing.html` | **the game** — self-contained, open it directly |
+| `src/game.html` | the source: markup, CSS and JS, art by placeholder |
+| `assets-src/` | original artwork as supplied |
+| `assets/` | keyed, trimmed, compressed art that gets embedded |
+| `tools/prep_assets.py` | turns `assets-src/` into `assets/` |
+| `tools/build.js` | inlines the art as data URIs, writes `dist/` and `docs/` |
+| `tools/make-og.js` | renders the 1200×630 link-preview image |
+| `tools/dbg/` | measuring tools used to tune the game (see below) |
+| `tools/shots.js` | regenerates the screenshots in `shots/` |
+| `tests/` | 41 Playwright tests |
+| `docs/` | what GitHub Pages serves |
+| `RUNWAYS.md` | the runway geometry, and how it was measured |
 
-## Where this differs from the spec
+---
 
-**1. Runways are quadrilaterals, not rectangles.** The map is a perspective
-render, so the near end of every slab is wider than the far end and no rotated
-rectangle can sit on one. Each runway is stored as the four corners of its
-painted tarmac; the threshold, heading and a landing box that narrows along its
-length are all derived from those. Headings moved as well — B's by nearly 6°.
-See `RUNWAYS.md`, which also records the three automatic fits that failed and
-why.
+## Make it your own
 
-**2. Turning is defined by a fixed radius, not a fixed rate.** §5.3's constant
-`MAX_TURN` means the turn radius grows with speed: a plane that tracked its line
-at 38px/s ran 24px wide of it at the end-game 58px/s. `TURN_R` is 20px, so
-handling and tracking are identical at every speed.
+Everything specific to Vacation Tracker sits in a handful of places. A re-skin is
+mostly new artwork plus four numbers.
 
-**3. A moving-average pass before Chaikin.** §5.3 offers "2 passes of Chaikin
-*or* a 5-tap moving average"; it needs both. Chaikin converges after two passes
-and stops removing hand tremor, and a tightly-tracking plane then follows that
-tremor. One 5-tap mean over 12px-spaced points averages ~60px of arc — enough to
-erase a wobble, gentle enough to leave a deliberate corner intact.
+### 1. Swap the artwork
 
-**4. The corridor clamp measures the rails, not the centreline.** §7 asks for a
-20px margin. C's threshold is near the bottom edge and its rails leave the
-canvas long before its centre does.
+Drop your own files in `assets-src/` and run `python3 tools/prep_assets.py`.
+PNG, WebP and JPEG all work.
 
-**5. The plane flies the line as it is being drawn.** §5.2 commits the route on
-`pointerup`, which means the plane holds its old heading through the whole drag
-and then snaps onto the new line when the mouse comes up. It now re-conditions
-the drag on every pointer move and hands it straight to the plane, so the plane
-is flying your line while you are still drawing it — and if it catches up with
-the end of the line, it homes on the cursor rather than dropping the route.
+| File | What it needs to be |
+|---|---|
+| `map-src.*` | the playfield, **3:2**, with the runways painted on it |
+| `plane-a-src.*` | a sprite for destination A, **top-down and nose-up** |
+| `plane-b-src.*`, `plane-c-src.*` | the same for B and C |
 
-**6. A stepped difficulty curve.** §6's ramps continuously and tops out between
-10 and 14 minutes; two minutes in it had added one aircraft, shaved 0.6s off the
-arrival gap and 3px/s off the speed. This steps once per elapsed minute and
-reaches full pressure at four. See below.
+The prep script trims each sprite to its alpha bounding box, scales it so the
+longest side is 144px, and re-encodes the map to WebP. Tune with `PLANE_LONGEST`
+in the script, or `MAP_WIDTH=1200 MAP_QUALITY=76 python3 tools/prep_assets.py`
+for a sharper map at a larger file size.
 
-**7. The separation warning grows with speed.** §5.5's fixed 78px gives a
-head-on pair 0.6s of warning at the opening 38px/s but only 0.35s at the top
-speed. The radius is now `max(78, 31 + speed × 1.15)`, so the warning always
-arrives about as long before contact — 78px early on, 109px at full speed.
+**If your sprites have no alpha channel,** the script handles it. Ours arrived
+with transparency faked as a light-grey checkerboard, which composites as a
+white box on dark water. It is keyed out by *connectivity* — flood-filling the
+near-white background inward from the border — rather than by whiteness, because
+one of our planes has white fuselage stripes and a grey propeller that a
+whiteness key destroys. The object mask is then eroded 2px to drop the blend
+band at the edge, and downscaled in premultiplied space so no white halo is
+reintroduced. `assets/verify/` holds the before-and-after renders.
 
-**8. Arrival types come from a shuffled bag.** §5.1 picks "uniformly from a/b/c",
-which produces runs of six or seven. See **Arrivals** below.
+### 2. Move the runways
 
-**9. The portrait gate is limited to touch devices.** §10.5 asks for a portrait
-gate on small screens. Keyed on width and orientation alone it also fires on a
-desktop: a narrow window, or an embedded side panel like the artifact preview
-pane, is portrait and under 640px too — but a 610x660 panel still yields a
-580x387 playfield, larger than the landscape-phone case the spec accepts. The
-gate now also requires `pointer:coarse`, and the cards compact so they fit
-inside a short playfield rather than scrolling out of reach.
+Runways are stored in `src/game.html` as the **four corners of the painted
+tarmac**, in the order near-left, far-left, far-right, near-right, where "near"
+is the threshold a plane crosses on approach:
 
-**10. Planes turn back at the edges instead of flying away.** The spec does not
-say what happens to a plane that reaches the boundary. Letting them leave would
-make the game trivial — you could ignore every plane. They now reflect off the
-edge and loiter, which is what makes the concurrency cap the difficulty lever §6
-intends it to be.
+```js
+const RUNWAYS=[
+  {k:'A',name:'the beach',col:'#22C55E',
+   quad:[[398,455],[438,580],[520,569],[457,453]]},
+  ...
+];
+```
 
-## Difficulty
+Everything else — the threshold, the heading, the approach corridor, and a
+landing box that narrows along the runway's length — is derived from those four
+points at load. Coordinates are in a fixed 1280×853 logical space, scaled to the
+display in CSS only.
 
-| Elapsed | aircraft cap | arrival gap | speed |
-|---|---|---|---|
-| 0:00 | 3 | 6.2s | 38 |
-| 1:00 | 5 | 4.9s | 46 |
-| 2:00 | 7 | 3.9s | 54 |
-| 3:00 | 9 | 3.0s | 61 |
-| 4:00+ | 11 | 2.3s | 68 |
+To find the corners for your own map, render it under a labelled pixel grid and
+read them off:
 
-One discrete step per elapsed minute, topping out at four. Tiers rather than a
-continuous ramp: nothing announces the change, so each step has to be big enough
-to feel at the moment it lands. A shift clock in the header is the only readout.
+```bash
+python3 tools/dbg/grid.py A                        # grid over runway A
+python3 tools/dbg/grid.py A '[[398,455],...]'      # grid plus a candidate quad
+```
 
-§6's original curve ramped continuously and reached full pressure somewhere
-between 10 and 14 minutes; at four minutes it gave 5 aircraft / 5.7s / 44px/s,
-where this is already at its ceiling.
+Corners, not a rectangle, because most maps drawn in perspective have runways
+whose near end is wider than the far end. [`RUNWAYS.md`](RUNWAYS.md) records the
+measurements and the three automatic fits that failed before we measured by
+hand — worth reading before you try to automate it.
 
-## Arrivals
+### 3. Retune the difficulty
 
-Types come from a shuffled bag holding two of each colour, not an independent
-roll per arrival. A uniform roll genuinely does hand out long runs — over a
-300-arrival session it produces a run of four or more *every time*, and a run of
-six or more in about half of them, with runs of ten observed.
+One tier per elapsed minute, in `src/game.html`:
 
-The bag keeps the mix even over every six arrivals; a hard cap stops a fourth of
-the same colour; and a nudge toward whatever the sky holds least of stops one
-runway getting swamped. Measured over 2,500 arrivals: an exact 33.3/33.3/33.3
-split, longest run 3, and about one arrival in five still repeats the last
-colour — a sequence that never repeats reads as mechanical, so the cap is a
-ceiling rather than a target.
+```js
+const TIERS=[
+  {cap:3,  gap:6.2, speed:38},   // 0:00 — learn the game
+  {cap:5,  gap:4.9, speed:46},   // 1:00
+  {cap:7,  gap:3.9, speed:54},   // 2:00
+  {cap:9,  gap:3.0, speed:61},   // 3:00
+  {cap:11, gap:2.3, speed:68}    // 4:00+ — full pressure
+];
+```
 
-## Steering
+`cap` is how many planes may be airborne at once, `gap` is seconds between
+arrivals, `speed` is px/s. Add or remove rows to change how long the ramp takes;
+the last row is what the game holds at. The cap is by far the strongest lever.
 
-Pure pursuit over a conditioned path (resample to 12px, one 5-tap mean, two
-Chaikin passes, cumulative arc length) with a forward-only closest-point search,
-so a plane can never latch onto a segment it has already flown. Look-ahead is
-`1.2 × TURN_R`, which keeps it at a fixed multiple of the turn radius.
+### 4. Rebrand
 
-Measured against a fast mouse flick — sparse pointer samples, hard corners, the
-shape a player actually draws mid-rush:
+- **Palette** — the `:root` custom properties at the top of `src/game.html`.
+  `--purple`, `--orange` and `--green` are also the three plane colours, mirrored
+  in `TYPES` and in the footer legend.
+- **Wordmark** — reproduced in CSS (`.brand` / `.mark`), not an image file.
+- **Copy** — the start card is built in `showStart()`; destination names live in
+  `NAMES` and the colour words in `COLW`.
+- **Link preview** — edit `DESC` in `tools/build.js` and the layout in
+  `tools/make-og.js`.
 
-| | worst off-path | mean off-path |
-|---|---|---|
-| fixed turn *rate*, 38px/s | 15.6px | 4.9px |
-| fixed turn *rate*, 58px/s | 24.0px | 9.7px |
-| fixed turn *radius*, either speed | 7.5px | 1.9px |
+### 5. Change the number of destinations
 
-Planes also roll into their turns: seen from above a banking aircraft
-foreshortens across the wings, so the sprite is squashed on its own x axis in
-proportion to a smoothed turn rate.
+Three is not baked into the engine, but it is not a single constant either.
+Adding a fourth means touching six places in `src/game.html`: `TYPES`,
+`RUNWAYS`, the arrival bag in `refillBag()`, `NAMES`, `COLW`, and the footer
+legend markup — plus a `chip()` call on the start card. Everything else, from
+the corridors to the landing maths, is derived.
 
-Routes are built live during the drag. Rebuilding is cheap, and the prefix of a
-re-conditioned path is stable, so the plane's progress along the line carries
-across each rebuild. A drag under 25px is still a tap: it restores whatever
-route the plane already had.
+### Publishing it
 
-The §12.4 regression test counts sign changes of the heading rate two ways — raw
-and low-passed over ±8 frames — and the suite proves the metric has teeth by
-feeding it a synthetic waypoint-chaser trace, which scores 129 against a clean
-arc's 1. Two further tests hold the flick figures above and assert that top speed tracks
-within 2px of the opening speed, and one steps time *between* pointer moves to
-prove the plane is flying the line mid-drag rather than waiting for the mouse.
+`node tools/build.js` writes `docs/`, which GitHub Pages serves directly:
+**Settings → Pages → Deploy from a branch → your branch, `/docs`**. The page
+carries Open Graph tags and a preview image, so the link unfurls with the game's
+title and artwork.
 
-## Tests
+Any static host works the same way — `docs/index.html` and
+`docs/holiday-landing-og.jpg` are self-contained and portable. `og:image` is a
+relative path so the file holds no absolute URLs; make it absolute if a
+particular unfurler needs that.
 
-41 Playwright tests covering every item in §12, plus the end-to-end player loop
-(sweep a curve across the map, finish it down the runway, land). Chromium is
-launched from `/opt/pw-browsers/chromium`; adjust `playwright.config.js`
-elsewhere.
+---
 
-## Link previews
+## How it works
 
-`dist/holiday-landing.html` carries Open Graph and Twitter card tags, and
-`dist/holiday-landing-og.jpg` is the 1200x630 preview image. Host the two side
-by side and the link unfurls with the game's title, description and artwork.
+A few decisions that are less obvious than they look.
 
-`og:image` is deliberately relative, so the file contains no absolute URLs and
-stays portable across hosts; every common unfurler resolves it against the page
-URL. Make it absolute if a particular one does not.
+**Steering.** Planes follow the drawn line by *pure pursuit* — chasing a point a
+fixed distance ahead on the path, never a waypoint — over a path that is
+resampled to 12px, averaged once with a 5-tap mean, and rounded with two Chaikin
+passes. The closest-point search only ever runs forward from a cached index, so
+a plane can never latch onto a segment it has already flown and thrash.
 
-To serve it from this repo: GitHub **Settings → Pages → Source: Deploy from a
-branch**, pick the branch and the **/docs** folder. The game then lives at
-`https://<user>.github.io/vacation-landing/` and that URL unfurls properly. Any
-other host works the same way — the two files are self-contained and portable.
+Turning is defined by a fixed **radius** (20px), not a fixed rate. A fixed rate
+means the turn radius grows with speed, and a plane that tracked its line at
+38px/s runs 24px wide of it at 68px/s. Against a fast mouse flick — sparse
+pointer samples, hard corners — that change took the worst deviation from 24px
+to 7.5px and the average from 9.7px to 1.9px, identically at every speed.
 
-**This cannot be made to work for a claude.ai artifact link.** That route serves
-static Open Graph metadata — fetched as a link scraper, a made-up artifact id
-returns exactly the same `Claude Artifact` / `Try out Artifacts created by Claude
-users` preview as a real one, none of the page's own words reach the scraper,
-and the response carries `x-robots-tag: none` with `robots: noindex, nofollow`.
-The title and description set at publish time drive the artifact gallery and the
-browser tab, not link previews.
+The route is rebuilt on every pointer move and handed straight to the plane, so
+it flies your line while you are still drawing it rather than waiting for the
+mouse to come up.
+
+**Arrivals.** Plane colours come from a shuffled bag holding two of each, not an
+independent roll per arrival. A uniform roll produces a run of four or more in
+*every* 300-arrival session and a run of six or more in about half of them. The
+bag keeps the mix even, a hard cap refuses a fourth of the same colour, and a
+nudge toward whatever the sky holds least of stops one runway getting swamped —
+while still letting about one arrival in five repeat, because a sequence that
+never repeats reads as mechanical.
+
+**Layout.** The canvas sizes itself from its own intrinsic aspect ratio rather
+than being given one by a wrapper, which is what keeps the map from stretching.
+The portrait "turn your phone" gate requires `pointer:coarse`, so a narrow
+desktop window or an embedded side panel still gets a playable game. Cards
+compact at narrow widths and short heights so the buttons stay reachable.
+
+**Everything else.** WebAudio oscillators only, muted by default. Reduced motion
+is respected. Full keyboard control, `aria-label` on the canvas, auto-pause when
+the tab is hidden. No storage APIs anywhere.
+
+## Testing
+
+```bash
+npx playwright test
+```
+
+41 tests: layout ratios across viewports, approach guides staying on canvas,
+the rules (correct landing, wrong island, warning before crash, un-routed
+flyover, crossing at 90°), the difficulty tiers, arrival distribution, and the
+end-to-end player loop — sweep a curve across the map, finish it down the
+runway, land.
+
+Two are worth knowing about. The **zig-zag regression test** counts sign changes
+of the heading rate two ways, raw and low-passed, and the suite proves the metric
+can fail by feeding it a synthetic waypoint-chaser trace, which scores 129
+against a clean arc's 1. The **live-drag test** steps simulation time *between*
+pointer moves, which is what makes it different from every other drag test.
+
+`playwright.config.js` points at the Chromium bundled in this container; change
+`launchOptions.executablePath` to run it elsewhere.
+
+## Licence
+
+Code is MIT — see [LICENSE](LICENSE). Do what you like with it.
+
+**The artwork is not.** The map, the three plane sprites and the Vacation Tracker
+name and logo belong to Vacation Tracker. If you fork this, bring your own art
+and your own branding — [Make it your own](#make-it-your-own) is written for
+exactly that, and the game works fine with anything in the right shape.

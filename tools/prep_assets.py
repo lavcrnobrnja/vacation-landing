@@ -12,7 +12,7 @@ grey propeller that a whiteness key would destroy.
 import numpy as np
 from PIL import Image
 from scipy import ndimage
-import os, sys
+import glob, os, sys
 
 SRC = os.path.dirname(os.path.abspath(__file__)) + '/../assets-src'
 OUT = os.path.dirname(os.path.abspath(__file__)) + '/../assets'
@@ -66,8 +66,21 @@ def premultiplied_resize(rgb, alpha, size):
     return np.clip(np.rint(out), 0, 255).astype(np.uint8)
 
 
+def source(name):
+    """Accept whatever the artwork arrives as, not just the format we happened
+    to receive first."""
+    for ext in ('png', 'webp', 'jpg', 'jpeg', 'PNG', 'WEBP', 'JPG', 'JPEG'):
+        p = f'{SRC}/{name}-src.{ext}'
+        if os.path.exists(p):
+            return p
+    hits = sorted(glob.glob(f'{SRC}/{name}-src.*'))
+    if hits:
+        return hits[0]
+    sys.exit(f'missing {SRC}/{name}-src.<png|webp|jpg>')
+
+
 def prep_plane(name, erode=2):
-    im = Image.open(f'{SRC}/{name}-src.webp')
+    im = Image.open(source(name))
     has_alpha = im.mode in ('RGBA', 'LA') or 'transparency' in im.info
     rgb = np.array(im.convert('RGB'))
 
@@ -103,7 +116,7 @@ def prep_plane(name, erode=2):
 
 
 def prep_map():
-    im = Image.open(f'{SRC}/map-src.webp').convert('RGB')
+    im = Image.open(source('map')).convert('RGB')
     w, h = im.size
     im2 = im.resize((MAP_WIDTH, round(h * MAP_WIDTH / w)), Image.LANCZOS)
     path = f'{OUT}/map.webp'
@@ -143,7 +156,8 @@ def verify(planes):
             worst[name] = int((neutral & bright).sum())
         else:
             worst[name] = 0
-    Image.fromarray(sheet).save(f'{OUT}/_verify_planes.png')
+    os.makedirs(f'{OUT}/verify', exist_ok=True)
+    Image.fromarray(sheet).save(f'{OUT}/verify/_verify_planes.png')
     print('\nfringe check (near-white neutral pixels on antialiased edges, lower is better):')
     for k, v in worst.items():
         print(f'  {k}: {v}')
